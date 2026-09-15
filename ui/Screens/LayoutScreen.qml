@@ -30,7 +30,7 @@ ScreenShell {
 
         LayoutPicker {
             Layout.fillWidth: true
-            Layout.preferredHeight: Metrics.px(230)
+            Layout.preferredHeight: implicitHeight
             visible: !screen.choosingContent
 
             currentId: screen.settingsData ? screen.settingsData.monitoringLayout

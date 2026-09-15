@@ -16,7 +16,13 @@ Item {
 
     signal layoutSelected(int layoutId)
 
+    // The grid grows a row for every three arrangements. Without this the
+    // item keeps whatever height it was given and the rows beyond it draw
+    // over whatever comes next.
+    implicitHeight: grid.implicitHeight
+
     GridLayout {
+        id: grid
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top

@@ -32,11 +32,16 @@ Item {
     readonly property int stepWidth: Math.round(spinner.ringSize * 0.34)
     readonly property int stepHeight: Math.round(spinner.ringSize * 0.64)
 
-    // The step buttons sit under the ring and a disc of the surface colour
-    // is punched over them, which is what puts a dark gap between the two
-    // instead of leaving the button flush against the stroke.
+    // The step buttons sit under the ring and a disc of the panel colour is
+    // punched over them, so the edge seen on the inside of each button is
+    // the disc's arc. That is the crescent the reference draws, and it only
+    // appears where the button reaches further in than the disc does.
     readonly property int carveGap: Math.max(Metrics.px(4),
                                              Math.round(spinner.ringSize * 0.09))
+
+    readonly property int stepOverlap:
+        spinner.carveGap + Math.max(Metrics.px(3),
+                                    Math.round(spinner.ringSize * 0.06))
 
     // Text.Fit only ever shrinks, so a bigger ring would keep the reference
     // sized number in the middle of it. The value grows with the ring and
@@ -48,7 +53,8 @@ Item {
     readonly property int gaugeStroke:
         Math.max(Metrics.px(4), Math.round(spinner.ringSize * 0.068))
 
-    implicitWidth: spinner.ringSize + spinner.stepWidth * 2
+    implicitWidth: spinner.ringSize
+                   + (spinner.stepWidth - spinner.stepOverlap) * 2
     implicitHeight: spinner.ringSize + Spacing.sm + caption.implicitHeight
 
     function clampValue(candidate) {
@@ -75,8 +81,9 @@ Item {
 
         StepButton {
             id: minusButton
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: ring.left
+            anchors.rightMargin: -spinner.stepOverlap
+            anchors.verticalCenter: ring.verticalCenter
             buttonWidth: spinner.stepWidth
             buttonHeight: spinner.stepHeight
             symbol: "−"
@@ -85,8 +92,9 @@ Item {
 
         StepButton {
             id: plusButton
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: ring.right
+            anchors.leftMargin: -spinner.stepOverlap
+            anchors.verticalCenter: ring.verticalCenter
             buttonWidth: spinner.stepWidth
             buttonHeight: spinner.stepHeight
             symbol: "+"

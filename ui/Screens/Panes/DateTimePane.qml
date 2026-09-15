@@ -32,7 +32,9 @@ Item {
     // ring grows into it rather than leaving the block in a corner.
     readonly property int spinnerGap: Metrics.px(34)
 
-    readonly property real spinnerRatio: 1.68
+    // Each spin box is the ring plus the part of each step button that the
+    // carve disc leaves showing: 0.34 of the ring wide, 0.15 of it tucked in.
+    readonly property real spinnerRatio: 1.38
 
     readonly property int ringFromWidth:
         Math.floor((pane.width - pane.spinnerGap * 2) / 3 / pane.spinnerRatio)
