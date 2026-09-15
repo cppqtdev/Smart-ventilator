@@ -5,11 +5,14 @@
 // -----------------------------------------------------------------------
 import QtQuick
 import "Panes"
-import "../Components"
 
-ScreenShell {
+// The shared chrome - header, status banner, sidebar tiles, control rail and
+// tab bar - lives once in main.qml. This file is only what changes when the
+// operator moves between tabs.
+Item {
     id: screen
 
+    property var presenter
     property var settingsData
     property var ventilatorData
     property var calibrationService
@@ -17,8 +20,6 @@ ScreenShell {
 
     /** Which sub-tab to open on. 1 is Tests and Calibration. */
     property int initialPage: 0
-
-    destination: "system"
 
     SystemPane {
         id: pane

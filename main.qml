@@ -34,12 +34,33 @@ ApplicationWindow {
     property int systemPage: 0
     property var eventModel: eventController
     property string currentScreen: "standby"
-    // Every screen rebuilt on ScreenShell draws its own header, sidebar, rail
-    // and tab bar, so the window chrome steps aside for them.
+    // These ten share one ScreenShell, built once below. The window chrome
+    // steps aside for them because the shell draws its own.
     readonly property var shellScreens: ["standby", "patient", "monitoring", "controls",
                                          "system", "layout", "events",
                                          "alarms", "tools", "modes"]
     readonly property bool homeActive: root.shellScreens.indexOf(root.currentScreen) >= 0
+
+    // Standby and patient setup are reached from the monitoring and controls
+    // tabs, so those are the tabs that stay lit while the operator is on them.
+    readonly property string activeTab:
+          root.currentScreen === "standby" ? "monitoring"
+        : root.currentScreen === "patient" ? "controls"
+        : root.currentScreen
+
+    // Controls fills the width with its own dials and has no room for the rail.
+    readonly property bool railVisible: root.currentScreen !== "controls"
+
+    // Going to monitoring means starting ventilation. The rule lives here so
+    // the tab bar, the bottom bar and the rail's own start button cannot
+    // drift apart.
+    function goTo(destination) {
+        if (destination === "monitoring" && !root.ventilatorModel.running) {
+            if (!root.ventilatorModel.requestStartVentilation())
+                return
+        }
+        root.currentScreen = destination
+    }
     property bool ventilationActive: ventilatorModel.running
     property bool splashActive: true
     property string clinicalAutomationStatus: ""
@@ -145,11 +166,45 @@ ApplicationWindow {
         topPadding: root.homeActive ? 0 : Spacing.panelGap
         bottomPadding: root.homeActive ? 0 : Spacing.panelGap
 
-        contentItem: Loader {
-            id: screenLoader
-            active: !root.splashActive
-            asynchronous: true
-            sourceComponent: root.navigateToScreen()
+        contentItem: Item {
+            // The shared chrome is built once and stays put. Only the centre
+            // is reloaded when the operator changes tab, so the header,
+            // sidebar, rail and tab bar keep their state and their bindings
+            // instead of being torn down and rebuilt on every press - which
+            // is what made the whole window blink.
+            ScreenShell {
+                id: shell
+                anchors.fill: parent
+                visible: root.homeActive && !root.splashActive
+
+                presenter: monitoringPresenter
+                destination: root.activeTab
+                showRail: root.railVisible
+
+                onNavigate: function (destination) { root.goTo(destination) }
+                onModeRequested: root.currentScreen = "modes"
+                onPatientRequested: root.currentScreen = "patient"
+                onAlarmRequested: root.currentScreen = "alarms"
+                onSettingActivated: root.currentScreen = "controls"
+                onLockRequested: screenLock.lockNow()
+
+                Loader {
+                    anchors.fill: parent
+                    active: root.homeActive && !root.splashActive
+                    // Synchronous: the pane on its own is cheap, and an
+                    // asynchronous load shows an empty centre while it builds.
+                    asynchronous: false
+                    sourceComponent: root.navigateToScreen()
+                }
+            }
+
+            Loader {
+                id: screenLoader
+                anchors.fill: parent
+                active: !root.homeActive && !root.splashActive
+                asynchronous: false
+                sourceComponent: root.navigateToScreen()
+            }
         }
     }
 
@@ -195,13 +250,7 @@ ApplicationWindow {
         ventilating: root.ventilationActive
         activeAlarmCount: root.alarmModel ? root.alarmModel.activeCount : 0
         alarmPriority: root.alarmPriority
-        onNavigate: function(screen) {
-            if (screen === "monitoring" && !root.ventilatorModel.running) {
-                if (!root.ventilatorModel.requestStartVentilation())
-                    return
-            }
-            root.currentScreen = screen
-        }
+        onNavigate: function (screen) { root.goTo(screen) }
     }
 
     SplashScreen {
@@ -293,19 +342,6 @@ ApplicationWindow {
             presenter: monitoringPresenter
             patientData: patientModel
             ventilatorData: ventilatorModel
-            onNavigate: function (destination) {
-                if (destination === "monitoring") {
-                    if (root.ventilatorModel.requestStartVentilation())
-                        root.currentScreen = "monitoring"
-                    return
-                }
-                root.currentScreen = destination
-            }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             onStartRequested: {
                 if (root.ventilatorModel.requestStartVentilation())
                     root.currentScreen = "monitoring"
@@ -326,11 +362,6 @@ ApplicationWindow {
             presenter: monitoringPresenter
             patientData: patientModel
             catalog: ventilationCatalog
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             onContinueRequested: root.currentScreen = "modes"
         }
     }
@@ -339,12 +370,6 @@ ApplicationWindow {
         id: modeScreen
         ModeSelectionScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             ventilatorData: ventilatorModel
             catalog: ventilationCatalog
             onModeConfirmed: function (mode) {
@@ -360,12 +385,6 @@ ApplicationWindow {
         HomeScreen {
             presenter: monitoringPresenter
             settingsData: appSettings
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
         }
     }
 
@@ -373,12 +392,6 @@ ApplicationWindow {
         id: controlsScreen
         ControlsScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             patientData: root.patientModel
             ventilatorData: ventilatorModel
             onSettingRequested: function (key, value) {
@@ -391,12 +404,6 @@ ApplicationWindow {
         id: alarmScreen
         AlarmCenterScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             alarmData: alarmModel
             ventilatorData: ventilatorModel
             onLimitRequested: function (key, value) {
@@ -409,12 +416,6 @@ ApplicationWindow {
         id: systemScreen
         SystemScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             settingsData: appSettings
             ventilatorData: ventilatorModel
             calibrationService: root.calibrationModel
@@ -431,12 +432,6 @@ ApplicationWindow {
         id: eventsScreen
         EventsScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             eventData: eventModel
             logData: typeof logBuffer !== "undefined" ? logBuffer : null
         }
@@ -446,12 +441,6 @@ ApplicationWindow {
         id: toolsScreen
         ToolsScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             ventilatorData: ventilatorModel
             alarmData: root.alarmModel
             onInspiratoryHoldRequested: root.ventilatorModel.performInspiratoryHold()
@@ -464,12 +453,6 @@ ApplicationWindow {
         id: layoutScreen
         LayoutScreen {
             presenter: monitoringPresenter
-            onNavigate: function (destination) { root.currentScreen = destination }
-            onModeRequested: root.currentScreen = "modes"
-            onLockRequested: screenLock.lockNow()
-            onPatientRequested: root.currentScreen = "patient"
-            onAlarmRequested: root.currentScreen = "alarms"
-            onSettingActivated: root.currentScreen = "controls"
             settingsData: appSettings
         }
     }

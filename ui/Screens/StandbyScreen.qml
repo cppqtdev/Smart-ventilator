@@ -6,21 +6,22 @@
 import QtQuick
 import QtQuick.Layouts
 import "Panes"
-import "../Components"
 import "../Controls"
 import "../Theme"
 
-ScreenShell {
+// The shared chrome - header, status banner, sidebar tiles, control rail and
+// tab bar - lives once in main.qml. This file is only what changes when the
+// operator moves between tabs.
+Item {
     id: screen
 
+    property var presenter
     property var patientData
     property var ventilatorData
     property int standbySeconds: 0
 
     signal startRequested()
     signal setupRequested()
-
-    destination: "monitoring"
 
     readonly property var categories: [
         { key: "Neonatal",  label: qsTr("Neonatal") },

@@ -5,19 +5,20 @@
 // -----------------------------------------------------------------------
 import QtQuick
 import "Home"
-import "../Components"
 import "../Theme"
 
-ScreenShell {
+// The shared chrome - header, status banner, sidebar tiles, control rail and
+// tab bar - lives once in main.qml. This file is only what changes when the
+// operator moves between tabs.
+Item {
     id: home
 
+    property var presenter
     property var settingsData
 
     property int layoutId: home.settingsData
                            ? home.settingsData.monitoringLayout
                            : HomeLayouts.defaultId
-
-    destination: "monitoring"
 
     // Writing the setting is enough: layoutId is bound to it, and the store
     // clamps the value. Assigning layoutId here as well would break that

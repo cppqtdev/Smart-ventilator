@@ -5,15 +5,16 @@
 // -----------------------------------------------------------------------
 import QtQuick
 import "Panes"
-import "../Components"
 
-ScreenShell {
+// The shared chrome - header, status banner, sidebar tiles, control rail and
+// tab bar - lives once in main.qml. This file is only what changes when the
+// operator moves between tabs.
+Item {
     id: screen
 
+    property var presenter
     property var eventData
     property var logData
-
-    destination: "events"
 
     EventsPane {
         anchors.fill: parent
