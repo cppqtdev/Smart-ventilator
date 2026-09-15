@@ -34,5 +34,5 @@ CMakeLists.txt.user*
 _to_delete/
 
 # Session scratch
-"Claude outputs"/
+Claude outputs/
 .claude/
