@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 import QtQuick
 import QtQuick.Layouts
+import "../Home"
 import "../../Controls"
 import "../../Theme"
 
@@ -18,6 +19,16 @@ Item {
     property bool pairMenuOpen: false
 
     signal confirmed(string page, string selection)
+
+    // Trends, loops and single waveform channels are chosen per layout cell,
+    // and the home layouts are still fixed compositions rather than cell
+    // hosts. Offering a choice the device then ignores is worse than saying
+    // so, so those tabs show what is coming and refuse the press.
+    readonly property var liveTabs: ["graphics"]
+
+    function tabIsLive(key) {
+        return pane.liveTabs.indexOf(key) >= 0
+    }
 
     readonly property var pages: [
         { key: "trends",    label: qsTr("Trends") },
@@ -154,6 +165,7 @@ Item {
                     Layout.preferredHeight: Metrics.px(28)
                     text: qsTr("Confirm")
                     buttonVariant: AppButton.Success
+                    enabled: pane.tabIsLive("trends")
                     onClicked: pane.confirmed("trends",
                                               pane.trendWindow + " " + pane.trendPair)
                 }
@@ -166,6 +178,7 @@ Item {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignTop
             visible: pane.pageIndex === 1
+            enabled: pane.tabIsLive("loops")
             columns: 2
             options: pane.loopPairs
             selection: pane.selection
@@ -192,6 +205,7 @@ Item {
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignTop
             visible: pane.pageIndex === 3
+            enabled: pane.tabIsLive("waveforms")
             columns: 3
             options: pane.waveforms
             selection: pane.selection
@@ -199,6 +213,17 @@ Item {
                 pane.selection = option
                 pane.confirmed("waveforms", option)
             }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            Layout.topMargin: Spacing.md
+            visible: !pane.tabIsLive(pane.pages[pane.pageIndex].key)
+            text: qsTr("This cell follows the chosen layout. Per-cell content arrives with the cell-driven home screen.")
+            color: Colors.textSecondary
+            font.family: Typography.monoFamily
+            font.pixelSize: Typography.caption
+            wrapMode: Text.WordWrap
         }
 
         Item { Layout.fillHeight: true }

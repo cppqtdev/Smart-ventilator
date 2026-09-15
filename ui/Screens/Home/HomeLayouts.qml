@@ -59,6 +59,21 @@ QtObject {
 
     readonly property int defaultId: 1
 
+    // The Graphics tab of the content chooser names these. A choice that
+    // maps to no layout is one the device cannot show, and the chooser greys
+    // it rather than accepting it and doing nothing.
+    readonly property var graphicsSources: {
+        "Monitoring": 1,
+        "Dynamic Lung": 5,
+        "Vent Status": 6,
+        "ASV Graph": 7
+    }
+
+    function layoutForGraphic(name) {
+        var id = layouts.graphicsSources[name]
+        return id === undefined ? 0 : id
+    }
+
     function entryFor(layoutId) {
         for (var i = 0; i < layouts.entries.length; ++i) {
             if (layouts.entries[i].id === layoutId)

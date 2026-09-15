@@ -46,7 +46,17 @@ ScreenShell {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: screen.choosingContent
-            onConfirmed: screen.choosingContent = false
+
+            // The choice used to be dropped on the floor: the pane emitted
+            // what the operator picked and the screen only closed itself.
+            onConfirmed: function (page, selection) {
+                if (page === "graphics") {
+                    var layoutId = HomeLayouts.layoutForGraphic(selection)
+                    if (layoutId > 0 && screen.settingsData)
+                        screen.settingsData.monitoringLayout = layoutId
+                }
+                screen.choosingContent = false
+            }
         }
 
         AppButton {
