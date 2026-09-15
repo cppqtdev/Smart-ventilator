@@ -1,0 +1,6 @@
+singleton Colors 1.0 Colors.qml
+singleton Spacing 1.0 Spacing.qml
+singleton Radius 1.0 Radius.qml
+singleton Typography 1.0 Typography.qml
+singleton Metrics 1.0 Metrics.qml
+singleton Icons 1.0 Icons.qml
