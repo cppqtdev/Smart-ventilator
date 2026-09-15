@@ -29,19 +29,14 @@ Item {
     // keeps the proportions of the rail dial at whatever size it is given.
     property int ringSize: Metrics.px(90)
 
-    readonly property int stepWidth: Math.round(spinner.ringSize * 0.34)
-    readonly property int stepHeight: Math.round(spinner.ringSize * 0.64)
-
-    // The step buttons sit under the ring and a disc of the panel colour is
-    // punched over them, so the edge seen on the inside of each button is
-    // the disc's arc. That is the crescent the reference draws, and it only
-    // appears where the button reaches further in than the disc does.
-    readonly property int carveGap: Math.max(Metrics.px(4),
-                                             Math.round(spinner.ringSize * 0.09))
-
-    readonly property int stepOverlap:
-        spinner.carveGap + Math.max(Metrics.px(3),
-                                    Math.round(spinner.ringSize * 0.06))
+    // The proportions measured off the reference dial: the button stops
+    // just short of the ring and the carve disc reaches further out than
+    // the button does, so the disc's arc bites the button's inner edge.
+    // The glyph sits outside the bite and stays readable.
+    readonly property int stepWidth: Math.round(spinner.ringSize * 0.385)
+    readonly property int stepHeight: Math.round(spinner.ringSize * 0.71)
+    readonly property int stepGap: Math.max(2, Math.round(spinner.ringSize * 0.036))
+    readonly property int carveGap: Math.max(4, Math.round(spinner.ringSize * 0.134))
 
     // Text.Fit only ever shrinks, so a bigger ring would keep the reference
     // sized number in the middle of it. The value grows with the ring and
@@ -54,7 +49,7 @@ Item {
         Math.max(Metrics.px(4), Math.round(spinner.ringSize * 0.068))
 
     implicitWidth: spinner.ringSize
-                   + (spinner.stepWidth - spinner.stepOverlap) * 2
+                   + (spinner.stepWidth + spinner.stepGap) * 2
     implicitHeight: spinner.ringSize + Spacing.sm + caption.implicitHeight
 
     function clampValue(candidate) {
@@ -82,7 +77,7 @@ Item {
         StepButton {
             id: minusButton
             anchors.right: ring.left
-            anchors.rightMargin: -spinner.stepOverlap
+            anchors.rightMargin: spinner.stepGap
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: spinner.stepWidth
             buttonHeight: spinner.stepHeight
@@ -93,7 +88,7 @@ Item {
         StepButton {
             id: plusButton
             anchors.left: ring.right
-            anchors.leftMargin: -spinner.stepOverlap
+            anchors.leftMargin: spinner.stepGap
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: spinner.stepWidth
             buttonHeight: spinner.stepHeight

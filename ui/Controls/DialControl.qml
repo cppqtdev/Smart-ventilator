@@ -27,48 +27,38 @@ Item {
     // the Controls grid, where three sit side by side in one column. Sizing
     // the ring from the width it is actually given is what keeps the grid
     // from overflowing at 1024 x 768 while still filling the rail at 1920.
-    readonly property int stepWidth:
-        Math.max(Metrics.px(24),
-                 Math.min(Metrics.dialStepWidth, Math.round(dial.width * 0.23)))
-
-    // The carve disc is the panel colour painted over the buttons, so the
-    // edge the operator sees on the inside of each one is the disc's arc.
-    // That is where the reference's crescent comes from, and it only appears
-    // if the button reaches further in than the disc does.
-    // Both are sized from the step button rather than from the ring, because
-    // the ring is sized from them and the other way round would be a loop.
-    readonly property int carveGap: Math.max(Metrics.px(4),
-                                             Math.round(dial.stepWidth * 0.22))
-
-    readonly property int stepOverlap:
-        dial.carveGap + Math.max(Metrics.px(3), Math.round(dial.stepWidth * 0.16))
+    // Measured off reference/controls-basic.png, all as a fraction of the
+    // ring so the shape holds at any size. The button stops just short of
+    // the ring; the carve disc reaches further out than the button does, so
+    // the disc's arc bites the button's inner edge. That bite is the curve,
+    // and it only lands on the edge - the glyph stays clear of it.
+    //
+    //   ring 89, button 34.3 wide and 63 tall, button edge 3.2 short of the
+    //   ring, carve disc 11.9 beyond it.
+    readonly property real assemblyRatio: 1.842
 
     readonly property int ringSize:
         Math.max(Metrics.px(56),
                  Math.min(Metrics.dialSize,
-                          Math.round(dial.width
-                                     - (dial.stepWidth - dial.stepOverlap) * 2)))
+                          Math.floor(dial.width / dial.assemblyRatio)))
+
+    readonly property int stepWidth: Math.round(dial.ringSize * 0.385)
+    readonly property int stepHeight: Math.round(dial.ringSize * 0.71)
+    readonly property int stepGap: Math.max(2, Math.round(dial.ringSize * 0.036))
+    readonly property int carveGap: Math.max(4, Math.round(dial.ringSize * 0.134))
 
     readonly property real sizeRatio: dial.ringSize / Math.max(1, Metrics.dialSize)
 
-    // The reference button is 66 tall against a 103 ring. Holding that ratio
-    // keeps the button inside the row when the ring has had to shrink.
-    readonly property int stepHeight:
-        Math.min(Metrics.dialStepHeight, Math.round(dial.ringSize * 0.64))
-
-    implicitWidth: Metrics.dialSize + Metrics.dialStepWidth * 2
+    implicitWidth: Math.round(Metrics.dialSize * dial.assemblyRatio)
     implicitHeight: labelText.implicitHeight + Spacing.sm + dial.ringSize
 
     // The ring is anchored to the bottom of the item, so a caller that asks
     // for less height than the dial needs would draw the ring over whatever
     // sits above it. Layouts honour the minimum, which stops that.
     //
-    // Width is different: the ring already shrinks with the width it is
-    // given, so the minimum is the two step buttons plus the smallest ring.
-    // Asking for the full reference width here overflowed the rail, which
-    // is one pixel narrower than the dial draws at.
-    Layout.minimumWidth: Metrics.px(56)
-                         + (Metrics.dialStepWidth - Metrics.px(12)) * 2
+    // Width is different: the ring shrinks with the width it is given, so
+    // the minimum is the whole assembly around the smallest ring.
+    Layout.minimumWidth: Math.round(Metrics.px(56) * dial.assemblyRatio)
     Layout.minimumHeight: dial.implicitHeight
 
     function propose(delta) {
@@ -99,7 +89,7 @@ Item {
         StepButton {
             id: minusButton
             anchors.right: ring.left
-            anchors.rightMargin: -dial.stepOverlap
+            anchors.rightMargin: dial.stepGap
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: dial.stepWidth
             buttonHeight: dial.stepHeight
@@ -110,7 +100,7 @@ Item {
         StepButton {
             id: plusButton
             anchors.left: ring.right
-            anchors.leftMargin: -dial.stepOverlap
+            anchors.leftMargin: dial.stepGap
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: dial.stepWidth
             buttonHeight: dial.stepHeight
