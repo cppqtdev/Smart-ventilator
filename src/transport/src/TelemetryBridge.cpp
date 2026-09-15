@@ -81,15 +81,26 @@ void TelemetryBridge::onFrame(const QVariantMap &values)
 void TelemetryBridge::onLinkChanged()
 {
     const bool up = linkUp();
+    if (up)
+        m_everUp = true;
 
     m_controller->setHardwareBackend(up);
-    m_controller->setBackendConnected(up);
+
+    // A link that has never carried a frame is not a link that dropped. The
+    // interface is simply running on its own model, which is the normal
+    // desktop case, and raising a disconnect for it would block the start on
+    // a device that was never attached.
+    if (m_everUp)
+        m_controller->setBackendConnected(up);
 
     if (auto *log = sv::common::LogBuffer::instance()) {
-        log->note(up ? sv::common::LogBuffer::Notice : sv::common::LogBuffer::Warning,
-                  QStringLiteral("sv.transport"),
-                  up ? tr("Device link up: %1").arg(descriptor())
-                     : tr("Device link down"));
+        if (up) {
+            log->note(sv::common::LogBuffer::Notice, QStringLiteral("sv.transport"),
+                      tr("Device link up: %1").arg(descriptor()));
+        } else if (m_everUp) {
+            log->note(sv::common::LogBuffer::Warning, QStringLiteral("sv.transport"),
+                      tr("Device link down"));
+        }
     }
 
     // Setpoints are not pushed on reconnect. The device is the authority on

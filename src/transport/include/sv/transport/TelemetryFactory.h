@@ -22,13 +22,15 @@ namespace sv::transport {
  * @brief Chooses the telemetry source for this run.
  *
  * Resolution order:
- *   1. SV_TELEMETRY=simulator forces the internal lung model.
- *   2. SV_TELEMETRY=udp forces the loopback frame link, which carries the
- *      same frames as CAN and is how the device is exercised on a machine
- *      with no CAN interface. See tools/sim/ventilator_sim.py.
- *   3. SV_TELEMETRY=can forces CAN and fails loudly if it cannot open.
- *   4. Otherwise CAN is tried and the internal model is the fallback, so a
- *      developer desktop with no bus still runs the whole application.
+ *   1. SV_TELEMETRY=simulator forces the internal lung model and opens no
+ *      link at all.
+ *   2. SV_TELEMETRY=can forces CAN and fails loudly if it cannot open.
+ *   3. Anything else, including nothing at all, opens the loopback frame
+ *      link. It carries the same frames as CAN, so running
+ *      tools/sim/ventilator_sim.py in another terminal is the whole setup.
+ *      With no simulator answering, the link simply never comes up and the
+ *      internal model runs, so the default costs a bound socket and nothing
+ *      else.
  *
  * SV_CAN_PLUGIN and SV_CAN_INTERFACE override the plugin and interface,
  * which is how socketcan/can0 on the target becomes virtualcan/can0 on a

@@ -44,9 +44,15 @@ Terminal one:
 
     python3 tools/sim/ventilator_sim.py
 
-Terminal two:
+Terminal two: just run the application. The loopback link is the default,
+so there is nothing to set. With no simulator answering the link never comes
+up and the internal model runs, which is the ordinary desktop case.
 
-    SV_TELEMETRY=udp ./MedicalProject
+    ./MedicalProject
+
+In Qt Creator, if you do want to force a mode, the variable belongs in
+**Projects, Run, Environment** - not Build Environment. The build environment
+is the compiler's, and the application never sees it.
 
 The simulator takes commands while it runs. `help` lists them. The useful
 ones for exercising the interface:
@@ -67,7 +73,7 @@ Environment:
 
 | Variable | Meaning |
 | --- | --- |
-| `SV_TELEMETRY` | `udp`, `can` or `simulator`. Absent means the internal model. |
+| `SV_TELEMETRY` | `simulator` for the internal model with no link at all, `can` for a real bus. Absent, or anything else, opens the loopback link. |
 | `SV_UDP_LISTEN_PORT` | Interface listen port, 35200 by default |
 | `SV_UDP_SEND_PORT` | Interface send port, 35201 by default |
 | `SV_CAN_PLUGIN` | Qt SerialBus plugin, `socketcan` on the target |

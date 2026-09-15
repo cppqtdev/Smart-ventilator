@@ -72,6 +72,7 @@ private:
     ITelemetrySource *m_source = nullptr;
     VentilatorController *m_controller = nullptr;
     bool m_adopting = false;
+    bool m_everUp = false;
 };
 
 } // namespace sv::transport

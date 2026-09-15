@@ -58,15 +58,22 @@ bool TelemetryFactory::simulatorRequested()
 
 bool TelemetryFactory::udpRequested()
 {
-    return environmentValue("SV_TELEMETRY").compare(QLatin1String("udp"),
-                                                    Qt::CaseInsensitive) == 0;
+    // The loopback link is the default. It costs a bound socket and nothing
+    // else when no device is answering, and it means running the simulator in
+    // another terminal is all it takes - no environment to set, and none to
+    // forget to set, which is the failure this removes.
+    const QString requested = environmentValue("SV_TELEMETRY");
+    if (requested.isEmpty())
+        return true;
+    return requested.compare(QLatin1String("udp"), Qt::CaseInsensitive) == 0;
 }
 
 bool TelemetryFactory::deviceLinkRequested()
 {
     const QString requested = environmentValue("SV_TELEMETRY");
-    return requested.compare(QLatin1String("udp"), Qt::CaseInsensitive) == 0
-        || requested.compare(QLatin1String("can"), Qt::CaseInsensitive) == 0;
+    if (requested.compare(QLatin1String("simulator"), Qt::CaseInsensitive) == 0)
+        return false;
+    return true;
 }
 
 UdpTelemetrySource::Endpoint TelemetryFactory::udpEndpointFromEnvironment()
