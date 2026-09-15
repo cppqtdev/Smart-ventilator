@@ -10,10 +10,10 @@ import QtQuick.Window
 import QtQuick.Controls.Basic
 import QtMultimedia
 
-import "qml/styles"
-import "qml/components/navigation"
-import "qml/components/indicators"
-import "qml/screens"
+import "ui/Theme"
+import "ui/Components"
+import "ui/Controls"
+import "ui/Screens"
 
 ApplicationWindow {
     id: root
@@ -28,13 +28,37 @@ ApplicationWindow {
     property var patientModel: patientController
     property var ventilatorModel: ventilatorController
     property var alarmModel: alarmController
+    property var calibrationModel: calibrationService
     property var eventModel: eventController
-    property string currentScreen: "login"
-    property string operatorRole: ""
+    property string currentScreen: "standby"
+    // Every screen rebuilt on ScreenShell draws its own header, sidebar, rail
+    // and tab bar, so the window chrome steps aside for them.
+    readonly property var shellScreens: ["standby", "patient", "monitoring", "controls",
+                                         "system", "layout", "events",
+                                         "alarms", "tools", "modes"]
+    readonly property bool homeActive: root.shellScreens.indexOf(root.currentScreen) >= 0
     property bool ventilationActive: ventilatorModel.running
-    property bool alarmVisible: alarmModel.active
     property bool splashActive: true
     property string clinicalAutomationStatus: ""
+
+    // Normalised highest active alarm priority - "high" | "medium" | "low" |
+    // "none". Everything that annunciates reads this one value so the two
+    // IEC 60601-1-8 indicators can never disagree with each other.
+    readonly property string alarmPriority: alarmModel
+        ? (alarmModel.highestPriority || "none") : "none"
+
+    // Metrics is a plain QtObject singleton and cannot read the Screen
+    // attached property itself, so the panel geometry is pushed in here.
+    // Touch targets are computed in millimetres from this - see Metrics.qml.
+    function syncMetrics() {
+        Metrics.windowWidth = root.width
+        Metrics.windowHeight = root.height
+        if (Screen.pixelDensity > 0)
+            Metrics.pixelsPerMm = Screen.pixelDensity
+    }
+
+    onWidthChanged: root.syncMetrics()
+    onHeightChanged: root.syncMetrics()
 
     function updateColorMode() {
         var mode = appSettings.dayNightMode
@@ -49,8 +73,6 @@ ApplicationWindow {
     }
 
     function navigateToScreen() {
-        if (root.currentScreen === "login")
-            return loginScreen
         if (root.currentScreen === "standby")
             return standbyScreen
         if (root.currentScreen === "patient")
@@ -59,12 +81,6 @@ ApplicationWindow {
             return modeScreen
         if (root.currentScreen === "controls")
             return controlsScreen
-        if (root.currentScreen === "trends")
-            return trendsScreen
-        if (root.currentScreen === "loops")
-            return loopsScreen
-        if (root.currentScreen === "clinical")
-            return clinicalScreen
         if (root.currentScreen === "alarms")
             return alarmScreen
         if (root.currentScreen === "system")
@@ -75,66 +91,107 @@ ApplicationWindow {
             return toolsScreen
         if (root.currentScreen === "layout")
             return layoutScreen
-        if (root.currentScreen === "target")
-            return targetScreen
-        if (root.currentScreen === "settings")
-            return settingsScreen
         if (root.currentScreen === "shutdown")
             return shutdownScreen
         if (root.currentScreen === "emergency")
             return emergencyScreen
-        return monitoringScreen
+        return homeScreen
     }
 
     header: AppHeader {
         id: header
-        visible: !root.splashActive && root.currentScreen !== "login"
-        alarmData: alarmModel
+        visible: !root.splashActive && !root.homeActive
+        width: parent.width
+
+        alarmData: root.alarmModel
         clockData: clockController
-        showAlarm: root.alarmVisible
-        mode: ventilatorModel.mode
-        patientCategory: patientModel.category
-        patientData: patientModel
+        batteryData: typeof batteryFacade !== "undefined" ? batteryFacade : null
+        patientData: root.patientModel
+
+        alarmPriority: root.alarmPriority
+        mode: root.ventilatorModel.mode
+        modeDescription: root.ventilatorModel.modeDescription !== undefined
+            ? root.ventilatorModel.modeDescription : ""
+        nonInvasive: root.ventilatorModel.nonInvasive === true
+        patientCategory: root.patientModel.category
         automationStatus: root.clinicalAutomationStatus
+        ventilating: root.ventilationActive
+        elapsedText: root.ventilatorModel.ventilationTime
+        screenLocked: screenLock.locked
+
+        onAlarmCentreRequested: root.currentScreen = "alarms"
+        onAudioPauseRequested: {
+            if (root.alarmModel.audioPaused)
+                root.alarmModel.resumeAudio()
+            else
+                root.alarmModel.pauseAudio(root.alarmModel.audioPauseMaxSeconds)
+        }
+        onAlarmResetRequested: root.alarmModel.resetLatched()
+        onLockRequested: screenLock.lockNow()
+        onModeRequested: root.currentScreen = "modes"
+        onPatientRequested: root.currentScreen = "patient"
         onEmergencyRequested: root.currentScreen = "emergency"
         onShutdownRequested: root.currentScreen = "shutdown"
     }
 
     Control {
-        leftPadding: Spacing.screenMargin
-        rightPadding: Spacing.screenMargin
-        width: parent.width
-        height: parent.height
+        id: contentArea
+        anchors.fill: parent
+        leftPadding: root.homeActive ? 0 : Spacing.screenMargin
+        rightPadding: root.homeActive ? 0 : Spacing.screenMargin
+        topPadding: root.homeActive ? 0 : Spacing.panelGap
+        bottomPadding: root.homeActive ? 0 : Spacing.panelGap
 
         contentItem: Loader {
             id: screenLoader
             active: !root.splashActive
             asynchronous: true
-            sourceComponent: navigateToScreen()
+            sourceComponent: root.navigateToScreen()
         }
     }
 
-    SystemStatusBanner {
-        id: systemStatusBanner
+    // IEC 60601-1-8 clause 6.3.2.2 requires two distinct visual alarm
+    // indicators. This is the one that has to be perceivable at 4 m: a
+    // full-width field of the highest active priority, above everything
+    // else on the screen including the header. The one legible at 1 m,
+    // which names the specific condition, lives inside AppHeader.
+    AlarmStrip {
+        id: alarmStrip
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.leftMargin: Spacing.screenMargin
-        anchors.rightMargin: Spacing.screenMargin
-        anchors.topMargin: root.header && root.header.visible
-                           ? root.header.height + Spacing.screenMargin_8
-                           : Spacing.screenMargin_8
-        z: 900
-        visible: !root.splashActive && root.currentScreen !== "login" && active
-        databaseData: databaseManager
-        ventilatorData: ventilatorModel
+        z: 1000
+        visible: !root.splashActive
+        priority: root.alarmPriority
+        audioPaused: root.alarmModel ? root.alarmModel.audioPaused : false
+    }
+
+    CommandToast {
+        id: commandToast
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: Metrics.screenPadding
+        anchors.rightMargin: Metrics.screenPadding
+        anchors.bottomMargin: Metrics.screenPadding
+                              + (root.homeActive ? Metrics.navHeight + Metrics.gutter : 0)
+        z: 950
+    }
+
+    Connections {
+        target: root.ventilatorModel
+        function onCommandRejected(message) {
+            commandToast.show(message, true)
+        }
     }
 
     footer: BottomNavigation {
         id: bottomNav
-        visible: !root.splashActive && root.currentScreen !== "login"
-        padding: Spacing.screenMargin
+        visible: !root.splashActive && !root.homeActive
         currentScreen: root.currentScreen
+        ventilating: root.ventilationActive
+        activeAlarmCount: root.alarmModel ? root.alarmModel.activeCount : 0
+        alarmPriority: root.alarmPriority
         onNavigate: function(screen) {
             if (screen === "monitoring" && !root.ventilatorModel.running) {
                 if (!root.ventilatorModel.requestStartVentilation())
@@ -152,7 +209,10 @@ ApplicationWindow {
         onFinished: root.splashActive = false
     }
 
-    Component.onCompleted: root.updateColorMode()
+    Component.onCompleted: {
+        root.syncMetrics()
+        root.updateColorMode()
+    }
 
     Connections {
         target: appSettings
@@ -161,17 +221,6 @@ ApplicationWindow {
         }
         function onDayNightScheduleChanged() {
             root.updateColorMode()
-        }
-    }
-
-    // Navigate to login screen when user logs out from any screen.
-    Connections {
-        target: userController
-        function onSessionChanged() {
-            if (!userController.loggedIn) {
-                root.operatorRole = ""
-                root.currentScreen = "login"
-            }
         }
     }
 
@@ -186,7 +235,7 @@ ApplicationWindow {
     // alarm tone plays regardless of which screen is currently loaded.
     MediaPlayer {
         id: alarmAudioPlayer
-        source: "qrc:/qml/assets/audio/alarm_tone.wav"
+        source: "qrc:/ui/Assets/alarm_tone.wav"
         loops: MediaPlayer.Infinite
         audioOutput: AudioOutput {
             volume: root.alarmModel.audioActive ? appSettings.audioVolume / 100.0 : 0.0
@@ -218,24 +267,31 @@ ApplicationWindow {
         id: screenLock
         anchors.fill: parent
         timeoutSeconds: userController.lockTimeoutSeconds
-    }
-
-    Component {
-        id: loginScreen
-        LoginScreen {
-            userControllerData: userController
-            onLoginAccepted: function(role) {
-                root.operatorRole = role
-                root.currentScreen = "standby"
-            }
-        }
+        users: userController
+        userName: userController.currentUser.length > 0
+                  ? userController.currentUser : "clinician"
+        onUnlocked: root.ventilatorModel.operatorId = userController.currentUser
     }
 
     Component {
         id: standbyScreen
         StandbyScreen {
+            presenter: monitoringPresenter
             patientData: patientModel
             ventilatorData: ventilatorModel
+            onNavigate: function (destination) {
+                if (destination === "monitoring") {
+                    if (root.ventilatorModel.requestStartVentilation())
+                        root.currentScreen = "monitoring"
+                    return
+                }
+                root.currentScreen = destination
+            }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             onStartRequested: {
                 if (root.ventilatorModel.requestStartVentilation())
                     root.currentScreen = "monitoring"
@@ -250,7 +306,14 @@ ApplicationWindow {
     Component {
         id: patientScreen
         PatientSetupScreen {
+            presenter: monitoringPresenter
             patientData: patientModel
+            catalog: ventilationCatalog
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             onContinueRequested: root.currentScreen = "modes"
         }
     }
@@ -258,106 +321,133 @@ ApplicationWindow {
     Component {
         id: modeScreen
         ModeSelectionScreen {
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             ventilatorData: ventilatorModel
-            onModeConfirmed: {
-                if (root.ventilatorModel.requestStartVentilation())
+            catalog: ventilationCatalog
+            onModeConfirmed: function (mode) {
+                if (root.ventilatorModel.requestModeChange(mode))
                     root.currentScreen = "monitoring"
             }
+            onCancelled: root.currentScreen = "monitoring"
         }
     }
 
     Component {
-        id: monitoringScreen
-        MonitoringScreen {
-            patientData: patientModel
-            ventilatorData: ventilatorModel
-            alarmData: alarmModel
-            layoutPreset: appSettings.monitoringLayout
+        id: homeScreen
+        HomeScreen {
+            presenter: monitoringPresenter
+            settingsData: appSettings
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
         }
     }
 
     Component {
         id: controlsScreen
         ControlsScreen {
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             patientData: root.patientModel
             ventilatorData: ventilatorModel
-        }
-    }
-
-    Component {
-        id: trendsScreen
-        TrendsScreen {
-            ventilatorData: ventilatorModel
-            databaseData: databaseManager
-        }
-    }
-
-    Component {
-        id: loopsScreen
-        LoopsScreen {
-            ventilatorData: ventilatorModel
-        }
-    }
-
-    Component {
-        id: clinicalScreen
-        ClinicalScreen {
-            patientData: patientModel
-            ventilatorData: ventilatorModel
-            eventData: eventModel
-            databaseData: databaseManager
-            alarmData: alarmModel
-            appSettingsData: appSettings
-            onGlobalStatusChanged: root.clinicalAutomationStatus = globalStatus
-            Component.onCompleted: root.clinicalAutomationStatus = globalStatus
+            onSettingRequested: function (key, value) {
+                root.ventilatorModel.requestParameterChange(key, Math.round(value))
+            }
         }
     }
 
     Component {
         id: alarmScreen
         AlarmCenterScreen {
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             alarmData: alarmModel
+            ventilatorData: ventilatorModel
+            onLimitRequested: function (key, value) {
+                root.ventilatorModel.requestAlarmLimitChange(key, Math.round(value))
+            }
         }
     }
 
     Component {
         id: systemScreen
-        SystemDiagnosticsScreen {
+        SystemScreen {
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
+            settingsData: appSettings
+            ventilatorData: ventilatorModel
+            calibrationService: root.calibrationModel
             clockData: clockController
-            appSettingsData: appSettings
         }
     }
 
     Component {
         id: eventsScreen
         EventsScreen {
-            alarmData: alarmModel
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             eventData: eventModel
+            logData: typeof logBuffer !== "undefined" ? logBuffer : null
         }
     }
 
     Component {
         id: toolsScreen
         ToolsScreen {
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
             ventilatorData: ventilatorModel
-            alarmData: alarmModel
-            eventData: eventModel
+            alarmData: root.alarmModel
+            onInspiratoryHoldRequested: root.ventilatorModel.performInspiratoryHold()
+            onExpiratoryHoldRequested: root.ventilatorModel.performExpiratoryHold()
         }
     }
 
     Component {
         id: layoutScreen
         LayoutScreen {
-            patientData: patientModel
-            ventilatorData: ventilatorModel
-            appSettingsData: appSettings
-        }
-    }
-
-    Component {
-        id: targetScreen
-        TargetScreen {
-            ventilatorData: ventilatorModel
+            presenter: monitoringPresenter
+            onNavigate: function (destination) { root.currentScreen = destination }
+            onModeRequested: root.currentScreen = "modes"
+            onLockRequested: screenLock.lockNow()
+            onPatientRequested: root.currentScreen = "patient"
+            onAlarmRequested: root.currentScreen = "alarms"
+            onSettingActivated: root.currentScreen = "controls"
+            settingsData: appSettings
         }
     }
 
@@ -380,12 +470,4 @@ ApplicationWindow {
         }
     }
 
-    Component {
-        id: settingsScreen
-        SettingsScreen {
-            appSettingsData: appSettings
-            userControllerData: userController
-            clockData: clockController
-        }
-    }
 }
