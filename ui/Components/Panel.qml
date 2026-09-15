@@ -9,24 +9,18 @@
 // full-screen offscreen pass on OpenGL ES 2.0 hardware, and buys nothing
 // on a matte medical panel viewed at 100-1500 lux.
 //
-// Two looks, chosen with `glass`:
+// One look: the flat surface the reference draws - opaque, one hairline
+// border. Tinted glass behind a waveform or a wall of numbers hurts
+// legibility, and the waveform plot background is specified as pure black.
 //
-//   glass: false  the default flat surface - opaque, one hairline border.
-//                 This is what data-dense areas use. Tinted glass behind a
-//                 waveform or a wall of numbers hurts legibility, and the
-//                 waveform plot background is specified as pure black.
-//
-//   glass: true   the frosted treatment from the reference sheet: a blue
-//                 tint at about a quarter alpha with specular streaks on the
-//                 top and bottom edges. Used for chrome - dialog shells,
-//                 the control rail, mode cards - where the background is
-//                 allowed to read through.
-//
-// The glass look is not re-implemented here. It is the same GlossSurface the
-// buttons use, so the panels and the buttons can never drift apart.
+// There used to be a second look, `glass`, described as a frosted treatment
+// for chrome. GlossSurface stopped drawing frost when the flat reference
+// look landed, and what the property did instead was fill the whole panel
+// with the accent blue - the dialog that asked for it came out a solid blue
+// block. The property is gone rather than left as a trap; a caller that
+// wants a lifted surface uses Colors.surfaceRaised.
 //
 import QtQuick
-import "../Controls"
 import "../Theme"
 
 Rectangle {
@@ -34,26 +28,10 @@ Rectangle {
     property int elevation: 1
     property color accentEdge: Colors.transparent
 
-    /** Switches from the flat surface to the frosted glass treatment. */
-    property bool glass: false
-
     radius: Radius.medium
-    color: root.glass ? Colors.transparent : Colors.surface
-    border.color: root.glass ? Colors.transparent : Colors.line
-    border.width: root.glass ? 0 : 1
-
-    // Declared first so it sits behind whatever the caller puts inside.
-    GlossSurface {
-        anchors.fill: parent
-        visible: root.glass
-        radius: root.radius
-        // A panel is large and static, so the streaks sit at their resting
-        // strength - a panel that lights up on hover would compete with the
-        // buttons on top of it.
-        interaction: 0
-        selected: false
-        bloom: Math.round(4 * Metrics.scale)
-    }
+    color: Colors.surface
+    border.color: Colors.line
+    border.width: 1
 
     Rectangle {
         visible: root.accentEdge.a > 0

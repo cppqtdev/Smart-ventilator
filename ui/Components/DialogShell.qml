@@ -20,7 +20,12 @@ import QtQuick
 import QtQuick.Layouts
 import "../Theme"
 
-Panel {
+// Panel.glass is not used here. Its frosted treatment was removed from
+// GlossSurface when the flat reference look landed, and what is left fills
+// the whole surface with the accent blue - a dialog drawn that way is a
+// solid blue block. A dialog is the same flat surface as every other panel,
+// one tone lighter so it reads as sitting above the screen behind it.
+Rectangle {
     id: shell
 
     property string titleText: ""
@@ -34,8 +39,10 @@ Panel {
     /** The buttons, right aligned under a rule. */
     property alias actions: actionHolder.data
 
-    glass: true
     radius: Radius.large
+    color: Colors.surfaceRaised
+    border.color: Colors.lineStrong
+    border.width: Metrics.borderWidth
 
     implicitWidth: Metrics.px(420)
     implicitHeight: layout.implicitHeight + Spacing.xl * 2
@@ -47,9 +54,10 @@ Panel {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: Metrics.borderWidth
+        anchors.leftMargin: Radius.large
+        anchors.rightMargin: Radius.large
+        anchors.topMargin: 0
         height: Metrics.px(3)
-        radius: height / 2
         color: Colors.accent
     }
 

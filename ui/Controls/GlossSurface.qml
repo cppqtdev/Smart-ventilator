@@ -10,8 +10,9 @@
 // the old property surface here is what makes the whole set flat at once
 // without touching a single call site.
 //
-// The frosted treatment this file used to carry is still available on
-// Panel.glass for chrome that wants it.
+// The frosted treatment this file used to carry is gone. Panel.glass, which
+// claimed to still offer it, only filled the surface with the accent blue,
+// and has been removed.
 //
 import QtQuick
 import "../Theme"
