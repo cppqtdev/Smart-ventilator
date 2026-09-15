@@ -15,12 +15,29 @@ set(SV_TRANSPORT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UdpTelemetrySource.cpp
 )
 
+# The headers have to be sources of the target or the meta-object compiler
+# never sees them: every class here carries Q_OBJECT, and without their
+# generated code the library has no static meta-objects and no vtables, which
+# is a link failure and not a compile one. Every other module globs its
+# headers in for the same reason. ITelemetrySource.h has no .cpp of its own,
+# so nothing would have reached it either way.
+set(SV_TRANSPORT_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/CanSignal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/ITelemetrySource.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/SimulatedTelemetrySource.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/TelemetryBridge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/TelemetryFactory.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/UdpTelemetrySource.h
+)
+
 if(Qt6SerialBus_FOUND)
     list(APPEND SV_TRANSPORT_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/CanTelemetrySource.cpp)
+    list(APPEND SV_TRANSPORT_HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/sv/transport/CanTelemetrySource.h)
 endif()
 
-qt_add_library(sv_transport STATIC ${SV_TRANSPORT_SOURCES})
+qt_add_library(sv_transport STATIC ${SV_TRANSPORT_SOURCES} ${SV_TRANSPORT_HEADERS})
 
 qt_add_resources(sv_transport "sv_transport_data"
     PREFIX "/data"

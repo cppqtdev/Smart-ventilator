@@ -57,6 +57,9 @@ run "one application identity across both bootstraps" \
 run "rows whose children cannot fit the width they are given" \
     python3 "$root/scripts/layout_fit_check.py"
 
+run "Q_OBJECT headers the meta-object compiler would never see" \
+    python3 "$root/scripts/metaobject_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else
