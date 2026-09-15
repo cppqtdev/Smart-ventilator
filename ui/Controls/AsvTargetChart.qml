@@ -52,21 +52,24 @@ Rectangle {
     onHeightChanged: plot.requestPaint()
     onTargetChanged: plot.requestPaint()
 
+    // The reference sets this in the top right corner of the plot itself.
+    // Anchored to the top left of the panel it sat on the volume axis.
     Text {
         id: heading
-        anchors.left: plot.left
-        anchors.top: parent.top
-        anchors.topMargin: Spacing.sm
+        anchors.right: plot.right
+        anchors.rightMargin: Spacing.sm
+        anchors.top: plot.top
+        anchors.topMargin: Spacing.xs
         text: qsTr("MinVol: %1 l/min").arg(chart.minuteVolume.toFixed(1))
         color: Colors.textPrimary
         font.family: Typography.monoFamily
-        font.pixelSize: Typography.caption
+        font.pixelSize: Typography.micro
     }
 
     Text {
         id: volumeTop
-        anchors.left: parent.left
-        anchors.leftMargin: Spacing.sm
+        anchors.right: plot.left
+        anchors.rightMargin: Spacing.xs
         anchors.top: plot.top
         text: Math.round(chart.volumeCeiling)
         color: Colors.textSecondary
@@ -75,8 +78,8 @@ Rectangle {
     }
 
     Text {
-        anchors.left: parent.left
-        anchors.leftMargin: Spacing.sm
+        anchors.right: plot.left
+        anchors.rightMargin: Spacing.xs
         anchors.verticalCenter: plot.verticalCenter
         text: Math.round(chart.volumeCeiling / 2)
         color: Colors.textSecondary
@@ -85,8 +88,8 @@ Rectangle {
     }
 
     Text {
-        anchors.left: parent.left
-        anchors.leftMargin: Spacing.sm
+        anchors.right: plot.left
+        anchors.rightMargin: Spacing.xs
         anchors.bottom: plot.bottom
         text: "1"
         color: Colors.textSecondary
@@ -117,7 +120,8 @@ Rectangle {
     Text {
         anchors.left: plot.left
         anchors.leftMargin: Spacing.xs
-        anchors.top: heading.bottom
+        anchors.top: plot.top
+        anchors.topMargin: Spacing.xs
         text: "V\nml"
         color: Colors.textSecondary
         font.family: Typography.monoFamily
@@ -129,10 +133,10 @@ Rectangle {
         id: plot
 
         anchors.fill: parent
-        anchors.leftMargin: Metrics.px(34)
-        anchors.rightMargin: Spacing.sm
-        anchors.topMargin: Metrics.px(22)
-        anchors.bottomMargin: Metrics.px(18)
+        anchors.leftMargin: Metrics.px(21)
+        anchors.rightMargin: 0
+        anchors.topMargin: Metrics.px(11)
+        anchors.bottomMargin: Metrics.px(22)
         renderStrategy: Canvas.Cooperative
 
         function xFor(rateValue) {

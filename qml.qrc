@@ -176,6 +176,7 @@
         <file>ui/Screens/StandbyScreen.qml</file>
         <file>ui/Screens/SystemScreen.qml</file>
         <file>ui/Screens/ToolsScreen.qml</file>
+        <file>ui/Screens/Home/AsvNumericsPanel.qml</file>
         <file>ui/Screens/Home/AsvTargetPanel.qml</file>
         <file>ui/Screens/Home/ContentAsvPair.qml</file>
         <file>ui/Screens/Home/ContentDualGraphics.qml</file>

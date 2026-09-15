@@ -1,3 +1,4 @@
 singleton HomeLayouts 1.0 HomeLayouts.qml
 AsvTargetPanel 1.0 AsvTargetPanel.qml
 LungPanel 1.0 LungPanel.qml
+AsvNumericsPanel 1.0 AsvNumericsPanel.qml
