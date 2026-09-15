@@ -164,10 +164,12 @@ void ClockController::refresh()
     // HARDWARE: Replace system clock with hardware RTC (e.g. DS3231 over I2C).
     // In production, synchronize via NTP when network is available.
     const QDateTime now = currentZonedTime();
+    // Numeric day, month, year and a 24 hour clock: the format a ward
+    // charts in, and the one that cannot be read two ways across regions.
     const QString nextDate = QLocale(QLocale::English).toString(
-        now.date(), QStringLiteral("dd-MMM-yyyy"));
+        now.date(), QStringLiteral("dd/MM/yyyy"));
     const QString nextTime = QLocale(QLocale::English).toString(
-        now.time(), QStringLiteral("hh:mm AP"));
+        now.time(), QStringLiteral("HH:mm"));
 
     m_dateText = nextDate;
     m_timeText = nextTime;

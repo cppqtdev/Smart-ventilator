@@ -25,12 +25,23 @@ Item {
     property int to: 59
     property int step: 1
     property bool wrap: true
-    // The reference ring measures 90 across. Three of these have to sit in
-    // a content column 484 wide, so the step buttons are narrower than the
-    // rail ones: 3 * (90 + 56) + two gutters comes to 470.
+    // The owner sets the ring; everything else follows it, so the control
+    // keeps the proportions of the rail dial at whatever size it is given.
     property int ringSize: Metrics.px(90)
-    property int stepWidth: Metrics.px(28)
-    property int stepHeight: Metrics.px(58)
+
+    readonly property int stepWidth: Math.round(spinner.ringSize * 0.34)
+    readonly property int stepHeight: Math.round(spinner.ringSize * 0.64)
+
+    // The step buttons sit under the ring and a disc of the surface colour
+    // is punched over them, which is what puts a dark gap between the two
+    // instead of leaving the button flush against the stroke.
+    readonly property int carveGap: Math.max(Metrics.px(4),
+                                             Math.round(spinner.ringSize * 0.09))
+
+    // Text.Fit only ever shrinks, so a bigger ring would keep the reference
+    // sized number in the middle of it. The value grows with the ring and
+    // Fit is left to handle the four digit year.
+    readonly property real sizeRatio: spinner.ringSize / Math.max(1, Metrics.px(90))
 
     signal valueSet(int newValue)
 
@@ -82,11 +93,9 @@ Item {
             onStepped: spinner.apply(1)
         }
 
-        // The step buttons sit under the ring, so the surface colour is cut
-        // back in behind it and the ring reads as one piece.
         Rectangle {
             anchors.centerIn: ring
-            width: ring.width + Metrics.px(8)
+            width: ring.width + spinner.carveGap * 2
             height: width
             radius: width / 2
             color: Colors.surface
@@ -108,7 +117,8 @@ Item {
                 text: String(spinner.value)
                 color: Colors.textPrimary
                 font.family: Typography.monoFamily
-                font.pixelSize: Typography.dialValue
+                font.pixelSize: Math.max(Metrics.px(14),
+                                         Math.round(Typography.dialValue * spinner.sizeRatio))
                 font.weight: Typography.bold
                 fontSizeMode: Text.Fit
                 minimumPixelSize: Typography.caption
@@ -133,7 +143,8 @@ Item {
         text: spinner.label
         color: Colors.textPrimary
         font.family: Typography.monoFamily
-        font.pixelSize: Typography.dialLabel
+        font.pixelSize: Math.max(Typography.caption,
+                                 Math.round(Typography.dialLabel * spinner.sizeRatio))
     }
 
     Accessible.role: Accessible.SpinBox
@@ -146,7 +157,7 @@ Item {
         id: step
 
         property string symbol: "+"
-        property int buttonWidth: Metrics.px(28)
+        property int buttonWidth: Metrics.px(30)
         property int buttonHeight: Metrics.px(58)
 
         signal stepped()

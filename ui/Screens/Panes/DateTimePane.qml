@@ -27,6 +27,24 @@ Item {
     property bool edited: false
     property string feedback: ""
 
+    // Three spinners and two gaps across, two rows and the summary down.
+    // The pane is given far more room than the reference screen has, so the
+    // ring grows into it rather than leaving the block in a corner.
+    readonly property int spinnerGap: Metrics.px(34)
+
+    readonly property real spinnerRatio: 1.68
+
+    readonly property int ringFromWidth:
+        Math.floor((pane.width - pane.spinnerGap * 2) / 3 / pane.spinnerRatio)
+
+    readonly property int ringFromHeight:
+        Math.floor((pane.height - Metrics.px(150)) / 2) - Metrics.px(34)
+
+    readonly property int ringSize:
+        Math.max(Metrics.px(84),
+                 Math.min(Metrics.px(140),
+                          Math.min(pane.ringFromWidth, pane.ringFromHeight)))
+
     readonly property int daysThisMonth: pane.clock
         ? pane.clock.daysInMonth(pane.pendingYear, pane.pendingMonth) : 31
 
@@ -35,7 +53,7 @@ Item {
     }
 
     readonly property string pendingDate:
-        "%1-%2-%3".arg(pane.pendingYear).arg(pane.two(pane.pendingMonth)).arg(pane.two(pane.pendingDay))
+        "%1/%2/%3".arg(pane.two(pane.pendingDay)).arg(pane.two(pane.pendingMonth)).arg(pane.pendingYear)
 
     readonly property string pendingTime:
         "%1:%2".arg(pane.two(pane.pendingHour)).arg(pane.two(pane.pendingMinute))
@@ -64,13 +82,16 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: Spacing.xl
+        spacing: Metrics.px(30)
+
+        Item { Layout.fillHeight: true }
 
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            spacing: Metrics.gutter
+            spacing: pane.spinnerGap
 
             RingSpinner {
+                ringSize: pane.ringSize
                 label: qsTr("Hour")
                 from: 0
                 to: 23
@@ -82,6 +103,7 @@ Item {
             }
 
             RingSpinner {
+                ringSize: pane.ringSize
                 label: qsTr("Minute")
                 from: 0
                 to: 59
@@ -95,9 +117,10 @@ Item {
 
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            spacing: Metrics.gutter
+            spacing: pane.spinnerGap
 
             RingSpinner {
+                ringSize: pane.ringSize
                 label: qsTr("Day")
                 from: 1
                 to: pane.daysThisMonth
@@ -109,6 +132,7 @@ Item {
             }
 
             RingSpinner {
+                ringSize: pane.ringSize
                 label: qsTr("Month")
                 from: 1
                 to: 12
@@ -120,6 +144,7 @@ Item {
             }
 
             RingSpinner {
+                ringSize: pane.ringSize
                 label: qsTr("Year")
                 from: 2020
                 to: 2099
@@ -133,8 +158,7 @@ Item {
         }
 
         RowLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignBottom
+            Layout.alignment: Qt.AlignHCenter
             spacing: Metrics.px(28)
 
             ColumnLayout {
@@ -185,12 +209,12 @@ Item {
             }
 
             Text {
-                Layout.fillWidth: true
+                Layout.preferredWidth: Metrics.px(170)
                 text: pane.feedback
                 color: Colors.textSecondary
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.caption
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
             }
         }
 

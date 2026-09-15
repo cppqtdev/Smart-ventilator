@@ -12,7 +12,7 @@ Rectangle {
     id: block
 
     property date now: new Date()
-    property string dateFormat: "MMM-dd-yyyy"
+    property string dateFormat: "dd/MM/yyyy"
     // A 24 hour clock is what the ward charts against, and it is also the
     // only format that leaves room for the date beside three indicators.
     property string timeFormat: "HH:mm"
