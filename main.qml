@@ -29,6 +29,9 @@ ApplicationWindow {
     property var ventilatorModel: ventilatorController
     property var alarmModel: alarmController
     property var calibrationModel: calibrationService
+
+    // Which System sub-tab to open on. Standby points it at the pre-use check.
+    property int systemPage: 0
     property var eventModel: eventController
     property string currentScreen: "standby"
     // Every screen rebuilt on ScreenShell draws its own header, sidebar, rail
@@ -307,9 +310,12 @@ ApplicationWindow {
                 if (root.ventilatorModel.requestStartVentilation())
                     root.currentScreen = "monitoring"
             }
+            // The pre-use check lives on the System screen. Standby sends the
+            // operator straight to it rather than to a legacy routine that
+            // ran nothing and left them on the patient page.
             onSetupRequested: {
-                root.ventilatorModel.runCalibration()
-                root.currentScreen = "patient"
+                root.systemPage = 1
+                root.currentScreen = "system"
             }
         }
     }
@@ -413,6 +419,11 @@ ApplicationWindow {
             ventilatorData: ventilatorModel
             calibrationService: root.calibrationModel
             clockData: clockController
+            initialPage: root.systemPage
+
+            // The pane captures initialPage in its own onCompleted, which runs
+            // first, so clearing it here means the next visit opens on Info.
+            Component.onCompleted: root.systemPage = 0
         }
     }
 

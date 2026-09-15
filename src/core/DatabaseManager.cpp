@@ -35,6 +35,30 @@ QString sqlString(const QString &value)
 }
 }
 
+namespace {
+
+// Two connections write this file: the caller's thread and the async writer.
+// Without write-ahead logging they serialise on a file lock and the second
+// one fails outright with "database is locked" rather than waiting, which is
+// what was dropping audit rows. The busy timeout is the other half: a writer
+// that finds the file busy waits for it instead of giving up.
+//
+// synchronous stays FULL. This file is the audit trail, and the throughput
+// here is a few rows a second, so there is nothing to buy by relaxing it.
+void applyConnectionPragmas(QSqlDatabase &database)
+{
+    if (!database.isOpen())
+        return;
+
+    QSqlQuery pragma(database);
+    pragma.exec(QStringLiteral("PRAGMA journal_mode = WAL"));
+    pragma.exec(QStringLiteral("PRAGMA busy_timeout = 5000"));
+    pragma.exec(QStringLiteral("PRAGMA synchronous = FULL"));
+    pragma.exec(QStringLiteral("PRAGMA foreign_keys = ON"));
+}
+
+} // namespace
+
 class DatabaseWriteWorker : public QObject
 {
     Q_OBJECT
@@ -55,7 +79,9 @@ public slots:
         if (!m_database.open()) {
             emit writeFailed(QStringLiteral("Async database writer open failed: ")
                              + m_database.lastError().text());
+            return;
         }
+        applyConnectionPragmas(m_database);
     }
 
     void close()
@@ -226,6 +252,8 @@ bool DatabaseManager::initialize()
         setError(QStringLiteral("Unable to open database: ") + m_database.lastError().text());
         return false;
     }
+
+    applyConnectionPragmas(m_database);
 
     if (!executeSchema()) {
         setStorageState(false, false, true, QStringLiteral("Database schema failed"));
