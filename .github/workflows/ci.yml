@@ -1,0 +1,72 @@
+# Nothing built this project or ran its tests automatically, which is how a
+# runtime failure reached the repository and took the application down. This
+# runs the same gate a developer runs locally: scripts/verify.sh.
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-checks:
+    # The checkers are pure Python and need no Qt, so they report in under a
+    # minute and fail the run before anything spends time compiling.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static checks
+        run: ./scripts/check.sh
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: static-checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          modules: 'qtmultimedia qtserialbus qtshadertools'
+          cache: true
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-x11-0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-xinerama0 libxcb-shape0
+
+      - name: Configure
+        run: cmake --preset=tests-debug
+
+      - name: Build
+        run: cmake --build --preset=tests-debug
+
+      - name: Test
+        # The QML test needs a display, so the whole suite runs under a
+        # virtual one rather than skipping the screens.
+        run: xvfb-run -a ctest --preset=tests-debug --output-on-failure
+
+  alarm-tones:
+    # The alarm tones are generated, not recorded. If the generator and the
+    # committed files disagree, the files nobody can read were edited by hand.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Regenerate the alarm tones
+        run: python3 tools/audio/make_alarm_tones.py
+      - name: They must match what is committed
+        run: git diff --exit-code -- ui/Assets/alarm_high.wav ui/Assets/alarm_medium.wav ui/Assets/alarm_low.wav ui/Assets/alarm_test.wav
