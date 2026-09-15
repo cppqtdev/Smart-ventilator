@@ -13,11 +13,61 @@ void syncSettings(QSettings &settings, const QString &key)
 }
 }
 
+namespace {
+// Writing the counter every minute would be hundreds of thousands of flash
+// writes a year for no benefit. Five minutes loses at most five minutes of
+// running time if the device loses power.
+constexpr int kPersistIntervalMs = 5 * 60 * 1000;
+}
+
 AppSettings::AppSettings(QObject *parent)
     : QObject(parent)
     , m_settings(sv::common::identity::organizationName(),
                  sv::common::identity::applicationName())
 {
+    // The default used to be 82.11, a number nobody measured, printed on the
+    // splash screen as if the device had run that long. A device that has
+    // never run has run for no hours.
+    m_baseHours = m_settings.value(QStringLiteral("device/operatingHours"), 0.0).toDouble();
+    if (m_baseHours < 0.0)
+        m_baseHours = 0.0;
+    m_session.start();
+
+    m_persistTimer.setInterval(kPersistIntervalMs);
+    connect(&m_persistTimer, &QTimer::timeout, this, [this]() {
+        persistOperatingHours();
+        emit operatingHoursChanged();
+    });
+    m_persistTimer.start();
+}
+
+AppSettings::~AppSettings()
+{
+    persistOperatingHours();
+}
+
+void AppSettings::persistOperatingHours()
+{
+    const double total = operatingHours();
+    m_settings.setValue(QStringLiteral("device/operatingHours"), total);
+    syncSettings(m_settings, QStringLiteral("device/operatingHours"));
+    m_baseHours = total;
+    m_session.restart();
+}
+
+QString AppSettings::serialNumber() const
+{
+    return m_settings.value(QStringLiteral("device/serialNumber"),
+                            QStringLiteral("not set")).toString();
+}
+
+void AppSettings::setSerialNumber(const QString &serial)
+{
+    if (serialNumber() == serial)
+        return;
+    m_settings.setValue(QStringLiteral("device/serialNumber"), serial);
+    syncSettings(m_settings, QStringLiteral("device/serialNumber"));
+    emit serialNumberChanged();
 }
 
 QString AppSettings::softwareVersion() const
@@ -32,7 +82,10 @@ QString AppSettings::buildId() const
 
 double AppSettings::operatingHours() const
 {
-    return m_settings.value(QStringLiteral("device/operatingHours"), 82.11).toDouble();
+    const double thisSession = m_session.isValid()
+        ? m_session.elapsed() / (1000.0 * 60.0 * 60.0)
+        : 0.0;
+    return m_baseHours + thisSession;
 }
 
 int AppSettings::brightness() const
@@ -77,8 +130,14 @@ int AppSettings::dayStartHour() const
 
 void AppSettings::setOperatingHours(double hours)
 {
+    // A service action after a board swap, not something the counter itself
+    // does. The session restarts from the new total.
+    if (hours < 0.0)
+        hours = 0.0;
     if (qFuzzyCompare(operatingHours(), hours))
         return;
+    m_baseHours = hours;
+    m_session.restart();
     m_settings.setValue(QStringLiteral("device/operatingHours"), hours);
     syncSettings(m_settings, QStringLiteral("device/operatingHours"));
     emit operatingHoursChanged();

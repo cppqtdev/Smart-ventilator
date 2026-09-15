@@ -1,7 +1,9 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QSettings>
+#include <QTimer>
 
 /**
  * @brief Provides persistent application settings through QSettings.
@@ -14,6 +16,7 @@ class AppSettings : public QObject
     Q_OBJECT
     Q_PROPERTY(QString softwareVersion READ softwareVersion CONSTANT)
     Q_PROPERTY(QString buildId READ buildId CONSTANT)
+    Q_PROPERTY(QString serialNumber READ serialNumber WRITE setSerialNumber NOTIFY serialNumberChanged)
     Q_PROPERTY(double operatingHours READ operatingHours WRITE setOperatingHours NOTIFY operatingHoursChanged)
     Q_PROPERTY(int brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
     Q_PROPERTY(int audioVolume READ audioVolume WRITE setAudioVolume NOTIFY audioVolumeChanged)
@@ -26,11 +29,14 @@ class AppSettings : public QObject
 
 public:
     explicit AppSettings(QObject *parent = nullptr);
+    ~AppSettings() override;
 
     /** @return Application software version string. */
     QString softwareVersion() const;
     /** @return CI/build identifier compiled into the application. */
     QString buildId() const;
+    /** @return The serial number written at manufacture, or a placeholder. */
+    QString serialNumber() const;
     /** @return Accumulated device operating hours. */
     double operatingHours() const;
     /** @return Display brightness level (0-100). */
@@ -51,6 +57,7 @@ public:
 public slots:
     /** @param hours Accumulated operating hours to store. */
     void setOperatingHours(double hours);
+    void setSerialNumber(const QString &serial);
     /** @param value Display brightness level (0-100). */
     void setBrightness(int value);
     /** @param value Audio volume level (0-100). */
@@ -68,6 +75,7 @@ public slots:
 
 signals:
     void operatingHoursChanged();
+    void serialNumberChanged();
     void brightnessChanged();
     void audioVolumeChanged();
     void languageChanged();
@@ -77,5 +85,14 @@ signals:
     void dayNightScheduleChanged();
 
 private:
+    /** Writes the running total to disk. Called on a timer and at exit. */
+    void persistOperatingHours();
+
     QSettings m_settings;
+    // Operating hours were a stored number that nothing ever changed.
+    // The stored value is the total up to the last write; the elapsed
+    // timer carries this session on top of it.
+    double m_baseHours = 0.0;
+    QElapsedTimer m_session;
+    QTimer m_persistTimer;
 };

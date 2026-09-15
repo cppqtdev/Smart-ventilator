@@ -28,6 +28,50 @@ Item {
         { key: "settings", label: qsTr("Settings") }
     ]
 
+    // The three Info chips all showed the same list, and the software
+    // version lived only on the splash screen where a service engineer never
+    // sees it. Each chip is its own page now, and the first one is the block
+    // that identifies this device.
+    readonly property var identityRows: [
+        { name: qsTr("Software"),       value: pane.settingsData ? pane.settingsData.softwareVersion : "---" },
+        { name: qsTr("Build"),          value: pane.settingsData ? pane.settingsData.buildId : "---" },
+        { name: qsTr("Serial"),         value: pane.settingsData ? pane.settingsData.serialNumber : "---" },
+        { name: qsTr("Operating hrs"),  value: pane.settingsData
+                                               ? pane.settingsData.operatingHours.toFixed(2) : "---" },
+        { name: qsTr("Mode"),           value: pane.ventilatorData ? pane.ventilatorData.mode : "---" },
+        { name: qsTr("Language"),       value: pane.settingsData ? pane.settingsData.language : "---" },
+        { name: qsTr("Time zone"),      value: pane.settingsData ? pane.settingsData.timeZoneId : "---" }
+    ]
+
+    readonly property var linkRows: [
+        { name: qsTr("Alarm sound"),    value: pane.alarmAudio
+                                               ? (pane.alarmAudio.available ? qsTr("Ready") : qsTr("UNAVAILABLE"))
+                                               : "---" },
+        { name: qsTr("Loudness"),       value: pane.settingsData
+                                               ? (pane.settingsData.audioVolume + " %") : "---" },
+        { name: qsTr("Data link"),      value: pane.ventilatorData
+                                               ? (pane.ventilatorData.backendConnected
+                                                  ? qsTr("Connected") : qsTr("Disconnected"))
+                                               : "---" },
+        { name: qsTr("Mains"),          value: pane.ventilatorData
+                                               ? (pane.ventilatorData.mainsConnected
+                                                  ? qsTr("Connected") : qsTr("On battery"))
+                                               : "---" },
+        { name: qsTr("Battery"),        value: pane.ventilatorData
+                                               ? (pane.ventilatorData.batteryRuntimeMinutes >= 0
+                                                  ? pane.ventilatorData.batteryRuntimeMinutes + qsTr(" min")
+                                                  : qsTr("Unknown"))
+                                               : "---" }
+    ]
+
+    readonly property var infoRows: {
+        if (pane.infoPage === 0)
+            return pane.identityRows
+        if (pane.infoPage === 2)
+            return pane.linkRows
+        return pane.deviceOptions
+    }
+
     readonly property var deviceOptions: [
         { name: qsTr("Options:"),        value: "---" },
         { name: qsTr("Adult/ped."),      value: qsTr("Neonatal") },
@@ -69,7 +113,7 @@ Item {
                         delegate: ChipButton {
                             required property int index
                             Layout.fillWidth: true
-                            text: qsTr("Info %1").arg(index + 1)
+                            text: [qsTr("Device"), qsTr("Options"), qsTr("Status")][index]
                             selected: pane.infoPage === index
                             onClicked: pane.infoPage = index
                         }
@@ -90,7 +134,7 @@ Item {
                         spacing: Spacing.xs
 
                         Repeater {
-                            model: pane.deviceOptions
+                            model: pane.infoRows
 
                             delegate: RowLayout {
                                 required property var modelData
