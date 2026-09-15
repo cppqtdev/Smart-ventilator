@@ -1670,151 +1670,80 @@ void VentilatorController::evaluateAlarms()
 {
     // -----------------------------------------------------------------------
     // ALARM EVALUATION
-    // In production, alarm thresholds should be validated against the device
-    // specification limits. The alarm priority arbitration follows IEC 60601-1-8.
-    // Hardware integration: connect alarm outputs to audible/visual indicators
-    // via GPIO or dedicated alarm driver IC.
+    // Every condition is detected independently and raised or cleared on its
+    // own. This used to stop at the first match and return, so a second
+    // condition was never detected and the first one was never cleared once a
+    // higher one appeared. IEC 60601-1-8 expects independent detection with
+    // the annunciator arbitrating priority, which is what AlarmController
+    // does with the set it is given.
+    //
+    // raiseCondition() is idempotent: it logs on first appearance and on
+    // escalation only, so calling it every sample tick is safe.
     // -----------------------------------------------------------------------
     if (!m_alarmController)
         return;
 
-    // Throttle alarm row creation: only add a new row when the alarm state
-    // transitions (not every 45ms sample tick).
-    const bool wasPreviouslyActive = m_alarmController->active();
+    struct Check {
+        const char *id;
+        bool present;
+        const char *priority;
+        const char *source;
+        QString headline;
+        QString detail;
+    };
 
-    // Patient disconnect: highest priority -- life-threatening
-    if (m_patientDisconnected) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("Patient Disconnect")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Critical"), QStringLiteral("Circuit"),
-                QStringLiteral("No airway pressure detected -- check patient connection"),
-                QStringLiteral("Active"));
+    const double driving = drivingPressure();
+
+    const Check checks[] = {
+        {"vent.disconnect", m_patientDisconnected, "Critical", "Circuit",
+         tr("Patient Disconnect"), tr("No airway pressure - check the circuit and the patient")},
+
+        {"vent.occlusion", m_circuitOcclusion, "Critical", "Circuit",
+         tr("Circuit Occlusion"), tr("High pressure with no flow - check tubing and filters")},
+
+        {"vent.paw.high", m_ppeak > m_alarmHighPressure, "Critical", "Pressure",
+         tr("High Pressure"),
+         tr("Ppeak %1 cmH2O above the %2 cmH2O limit")
+             .arg(qRound(m_ppeak)).arg(m_alarmHighPressure)},
+
+        {"vent.mv.high", m_expMinVol > m_alarmHighMv, "Critical", "Volume",
+         tr("High Minute Volume"),
+         tr("%1 L/min above the %2 L/min limit")
+             .arg(QString::number(m_expMinVol - m_alarmHighMv, 'f', 1)).arg(m_alarmHighMv)},
+
+        {"vent.vte.low", m_running && m_vte > 0 && m_vte < m_alarmLowVt, "Critical", "Volume",
+         tr("Low Tidal Volume"),
+         tr("VTE %1 mL below the %2 mL limit").arg(qRound(m_vte)).arg(m_alarmLowVt)},
+
+        {"vent.spo2.low", m_spo2 > 0 && m_spo2 < m_alarmLowSpo2, "Warning", "Oximetry",
+         tr("Low SpO2"),
+         tr("SpO2 %1 percent below the %2 percent limit")
+             .arg(qRound(m_spo2)).arg(m_alarmLowSpo2)},
+
+        {"vent.etco2.high", m_etco2 > 50, "Warning", "Capnography",
+         tr("High EtCO2"),
+         tr("End tidal carbon dioxide %1 mmHg").arg(qRound(m_etco2))},
+
+        {"vent.fio2.prolonged", m_highFio2Minutes > 120 && m_fio2 > 60, "Warning", "Oxygen",
+         tr("Prolonged High Oxygen"),
+         tr("Above 60 percent for %1 minutes - consider weaning").arg(m_highFio2Minutes)},
+
+        {"vent.driving.high", m_running && driving > 15.0, "Warning", "Pressure",
+         tr("High Driving Pressure"),
+         tr("%1 cmH2O, target below 15 - reduce tidal volume or raise PEEP")
+             .arg(qRound(driving))}
+    };
+
+    for (const Check &check : checks) {
+        const QString id = QString::fromLatin1(check.id);
+        if (check.present) {
+            m_alarmController->raiseCondition(id, QString::fromLatin1(check.priority),
+                                              QString::fromLatin1(check.source),
+                                              check.headline, check.detail, true);
+        } else {
+            m_alarmController->clearCondition(id);
         }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Critical"));
-        m_alarmController->setHeadline(QStringLiteral("Patient Disconnect"));
-        m_alarmController->setDetail(QStringLiteral("Check circuit and patient"));
-        return;
     }
-
-    // Circuit occlusion: high pressure with no flow
-    if (m_circuitOcclusion) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("Circuit Occlusion")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Critical"), QStringLiteral("Circuit"),
-                QStringLiteral("High pressure with no flow -- check for obstruction"),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Critical"));
-        m_alarmController->setHeadline(QStringLiteral("Circuit Occlusion"));
-        m_alarmController->setDetail(QStringLiteral("Check tubing and filters"));
-        return;
-    }
-
-    if (m_ppeak > m_alarmHighPressure) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("High Pressure")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Critical"), QStringLiteral("Pressure"),
-                QStringLiteral("Paw above limit — Ppeak ") + QString::number(qRound(m_ppeak)) + QStringLiteral(" cmH2O"),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Critical"));
-        m_alarmController->setHeadline(QStringLiteral("High Pressure"));
-        m_alarmController->setDetail(QStringLiteral("Paw above limit"));
-        return;
-    }
-
-    if (m_expMinVol > m_alarmHighMv) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("High Minute Volume")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Critical"), QStringLiteral("Volume"),
-                QStringLiteral("Expired minute volume %1 L/min above the %2 L/min limit")
-                    .arg(QString::number(m_expMinVol, 'f', 1))
-                    .arg(m_alarmHighMv),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Critical"));
-        m_alarmController->setHeadline(QStringLiteral("High Minute Volume"));
-        m_alarmController->setDetail(
-            QStringLiteral("%1 L/min above limit").arg(
-                QString::number(m_expMinVol - m_alarmHighMv, 'f', 1)));
-        return;
-    }
-
-    if (m_spo2 < m_alarmLowSpo2 && m_spo2 > 0) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("Low SpO2")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Warning"), QStringLiteral("Oximetry"),
-                QStringLiteral("SpO2 ") + QString::number(qRound(m_spo2)) + QStringLiteral("% below threshold"),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Warning"));
-        m_alarmController->setHeadline(QStringLiteral("Low SpO2"));
-        m_alarmController->setDetail(QStringLiteral("Oxygen saturation below 90%"));
-        return;
-    }
-
-    if (m_etco2 > 50) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("High EtCO2")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Warning"), QStringLiteral("Capnography"),
-                QStringLiteral("EtCO2 ") + QString::number(qRound(m_etco2)) + QStringLiteral(" mmHg above limit"),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Warning"));
-        m_alarmController->setHeadline(QStringLiteral("High EtCO2"));
-        m_alarmController->setDetail(QStringLiteral("End-tidal CO2 elevated"));
-        return;
-    }
-
-    // O2 toxicity warning: prolonged high FiO2 exposure
-    if (m_highFio2Minutes > 120 && m_fio2 > 60) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("O2 Toxicity Risk")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Warning"), QStringLiteral("Oxygen"),
-                QStringLiteral("FiO2 >60% for ") + QString::number(m_highFio2Minutes)
-                    + QStringLiteral(" min -- consider weaning"),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Warning"));
-        m_alarmController->setHeadline(QStringLiteral("O2 Toxicity Risk"));
-        m_alarmController->setDetail(QStringLiteral("Prolonged high FiO2 exposure"));
-        return;
-    }
-
-    // High driving pressure warning (lung protection)
-    if (drivingPressure() > 15.0) {
-        if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("High Driving Pressure")) {
-            m_alarmController->addAlarm(
-                QStringLiteral("Warning"), QStringLiteral("Pressure"),
-                QStringLiteral("Driving pressure ") + QString::number(qRound(drivingPressure()))
-                    + QStringLiteral(" cmH2O -- target <15"),
-                QStringLiteral("Active"));
-        }
-        m_alarmController->setActive(true);
-        m_alarmController->setPriority(QStringLiteral("Warning"));
-        m_alarmController->setHeadline(QStringLiteral("High Driving Pressure"));
-        m_alarmController->setDetail(QStringLiteral("Lung injury risk -- reduce Vt or increase PEEP"));
-        return;
-    }
-
-    // Clear alarm state when all conditions are normal.
-    if (wasPreviouslyActive) {
-        m_alarmController->addAlarm(
-            QStringLiteral("Info"), QStringLiteral("System"),
-            QStringLiteral("All parameters within normal limits"),
-            QStringLiteral("Resolved"));
-    }
-    m_alarmController->setActive(false);
-    m_alarmController->setPriority(QStringLiteral("Normal"));
-    m_alarmController->setHeadline(QStringLiteral("No Active Alarms"));
-    m_alarmController->setDetail(QStringLiteral("System normal"));
 }
 
 QVariantMap VentilatorController::snapshot() const

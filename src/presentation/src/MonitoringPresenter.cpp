@@ -209,6 +209,13 @@ bool MonitoringPresenter::ventilating() const
     return m_ventilator != nullptr && m_ventilator->running();
 }
 
+int MonitoringPresenter::measuredRate() const
+{
+    if (m_ventilator == nullptr)
+        return 0;
+    return int(qRound(m_ventilator->ftotal()));
+}
+
 QString MonitoringPresenter::readinessReason() const
 {
     return m_ventilator != nullptr ? m_ventilator->readinessReason() : QString();
