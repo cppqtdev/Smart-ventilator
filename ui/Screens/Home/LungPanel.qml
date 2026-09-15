@@ -21,43 +21,11 @@ Rectangle {
 
     readonly property var patient: panel.presenter ? panel.presenter.patient : ({})
     readonly property var readouts: panel.presenter ? panel.presenter.readouts : []
-    readonly property bool ventilating: panel.presenter ? panel.presenter.ventilating : false
 
     signal patientClicked()
 
     radius: Radius.medium
     color: Colors.surface
-
-    // 0 at end expiration, 1 at end inspiration.
-    property real inflation: 0
-
-    readonly property int breathRate: {
-        var rate = panel.presenter && panel.presenter.measuredRate !== undefined
-                   ? panel.presenter.measuredRate : 0
-        return rate > 0 ? rate : 14
-    }
-
-    SequentialAnimation {
-        id: breathCycle
-        running: panel.ventilating && !panel.frozen
-        loops: Animation.Infinite
-
-        NumberAnimation {
-            target: panel; property: "inflation"; to: 1
-            duration: breathCycle.inspiratoryMs; easing.type: Easing.OutQuad
-        }
-
-        NumberAnimation {
-            target: panel; property: "inflation"; to: 0
-            duration: breathCycle.expiratoryMs; easing.type: Easing.InQuad
-        }
-
-        readonly property int cycleMs: 60000 / Math.max(4, panel.breathRate)
-        readonly property int inspiratoryMs: Math.round(cycleMs * 0.33)
-        readonly property int expiratoryMs: Math.max(200, cycleMs - inspiratoryMs)
-
-        onRunningChanged: { if (!running) panel.inflation = 0 }
-    }
 
     // The readouts used to stack under the picture, which left the picture
     // a few pixels of a shared half-width panel. The reference sets them in
@@ -137,20 +105,10 @@ Rectangle {
                 Layout.fillHeight: true
                 Layout.minimumWidth: Metrics.px(80)
 
-                Image {
-                    id: lungImage
+                BreathingLung {
                     anchors.fill: parent
-                    source: "qrc:/ui/Assets/lungs.png"
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    asynchronous: true
-
-                    transform: Scale {
-                        origin.x: lungImage.width / 2
-                        origin.y: lungImage.height * 0.18
-                        xScale: 1.0 + panel.inflation * 0.035
-                        yScale: 1.0 + panel.inflation * 0.075
-                    }
+                    presenter: panel.presenter
+                    frozen: panel.frozen
                 }
             }
 

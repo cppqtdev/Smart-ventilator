@@ -85,14 +85,12 @@ ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            Image {
+            BreathingLung {
                 anchors.centerIn: parent
                 width: Math.min(parent.width, Metrics.px(216))
                 height: Math.min(parent.height, Metrics.px(236))
-                source: "qrc:/ui/Assets/lungs.png"
-                fillMode: Image.PreserveAspectFit
-                smooth: true
-                asynchronous: true
+                presenter: content.presenter
+                frozen: content.frozen
             }
         }
 

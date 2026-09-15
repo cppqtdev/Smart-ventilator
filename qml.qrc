@@ -123,6 +123,7 @@
         <file>ui/Components/AlarmStrip.qml</file>
         <file>ui/Components/AppHeader.qml</file>
         <file>ui/Components/BottomNavigation.qml</file>
+        <file>ui/Components/BreathingLung.qml</file>
         <file>ui/Components/ClockBlock.qml</file>
         <file>ui/Components/ClockDisplay.qml</file>
         <file>ui/Components/CommandToast.qml</file>
