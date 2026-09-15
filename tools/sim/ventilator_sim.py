@@ -314,12 +314,37 @@ class Device:
         self.setpoints.inspiratory_time = values.get("setInspiratoryTime", self.setpoints.inspiratory_time)
         self.setpoints.trigger = values.get("setTrigger", self.setpoints.trigger)
 
+    def enter_standby(self) -> None:
+        """Drops the per-breath results so standby reports no breath.
+
+        A device that keeps publishing the last breath it delivered leaves a
+        peak pressure and a tidal volume on the monitor while nothing is
+        being delivered, and the low tidal volume limit still compares
+        against it.
+        """
+        self.ventilating = False
+        self.phase = 0.0
+        self.peak = 0.0
+        self.plateau = 0.0
+        self.mean = 0.0
+        self.total_peep = 0.0
+        self.vte = 0.0
+        self.minute_volume = 0.0
+        self.measured_rate = 0.0
+        self.leak = 0.0
+        self.compliance = 0.0
+        self.resistance = 0.0
+        # No gas moves through the capnograph in standby. Oxygen saturation
+        # keeps reading, because that sensor is on the patient, not in the
+        # breathing circuit.
+        self.etco2 = 0.0
+
     def apply_command(self, code: int) -> str:
         name = COMMAND_NAMES.get(code, f"unknown ({code})")
         if code == 1:
             self.ventilating = True
         elif code == 2:
-            self.ventilating = False
+            self.enter_standby()
         elif code == 5:
             self.phase = 0.0
         return name

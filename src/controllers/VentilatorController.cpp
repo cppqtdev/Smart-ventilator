@@ -458,6 +458,16 @@ void VentilatorController::stopVentilation()
     m_vte = m_ftotal = m_rcexp = m_expMinVol = 0;
     m_workOfBreathing = 0; m_stressIndex = 1.0; m_deadSpaceFraction = 0.3;
     m_patientDisconnected = false; m_circuitOcclusion = false;
+    m_totalPeep = m_leakPercent = 0;
+
+    // Going to standby is an operator action, so the patient alarms raised
+    // by the last breath are cleared and their latches dropped. Without the
+    // reset a latched condition stays annunciated over a device that is no
+    // longer ventilating.
+    evaluateAlarms();
+    if (m_alarmController)
+        m_alarmController->resetLatched();
+
     if (m_database)
         m_database->logEvent(QStringLiteral("Ventilation"), QStringLiteral("Ventilation stopped"), QStringLiteral("Standby"));
     saveSession();
@@ -1172,6 +1182,15 @@ void VentilatorController::applyTelemetry(const QVariantMap &values)
     if (state != values.constEnd())
         adoptDeviceState(state.value().toInt() != 0);
 
+    // A device that keeps publishing its last breath would leave a peak
+    // pressure and a tidal volume on the screen in standby. The breath
+    // derived numbers only stand while the device says it is ventilating.
+    if (!m_running) {
+        m_ppeak = m_pplat = m_pmean = m_totalPeep = 0;
+        m_vte = m_expMinVol = m_ftotal = 0;
+        m_compliance = m_resistance = m_leakPercent = 0;
+    }
+
     if (measurements) {
         evaluateAlarms();
         emit measurementsChanged();
@@ -1308,6 +1327,18 @@ void VentilatorController::adoptDeviceState(bool deviceVentilating)
         m_running = false;
         m_sampleTimer.stop();
         m_ventilationTimer.stop();
+
+        // The device stopping is the same event as the operator stopping,
+        // so the patient alarms go with it and their latches are dropped.
+        m_ppeak = m_pplat = m_pmean = m_totalPeep = 0;
+        m_vte = m_expMinVol = m_ftotal = 0;
+        m_compliance = m_resistance = m_leakPercent = 0;
+        m_patientDisconnected = false;
+        m_circuitOcclusion = false;
+        evaluateAlarms();
+        if (m_alarmController)
+            m_alarmController->resetLatched();
+
         if (m_database) {
             m_database->logEvent(QStringLiteral("Ventilation"),
                                  QStringLiteral("Device reports standby"),
@@ -1683,6 +1714,24 @@ void VentilatorController::evaluateAlarms()
     if (!m_alarmController)
         return;
 
+    // Standby means no breath is being delivered, so every condition below
+    // describes something that is not happening. Real ventilators make the
+    // patient alarms inactive in standby for exactly this reason; leaving
+    // them on puts a Low Tidal Volume on the banner of a device that is
+    // deliberately not ventilating. Technical alarms - battery, gas supply,
+    // device fault, backend loss - are raised elsewhere and are untouched.
+    static const char *const patientConditions[] = {
+        "vent.disconnect", "vent.occlusion", "vent.paw.high", "vent.mv.high",
+        "vent.vte.low", "vent.spo2.low", "vent.etco2.high",
+        "vent.fio2.prolonged", "vent.driving.high"
+    };
+
+    if (!m_running) {
+        for (const char *id : patientConditions)
+            m_alarmController->clearCondition(QString::fromLatin1(id));
+        return;
+    }
+
     struct Check {
         const char *id;
         bool present;
@@ -1711,7 +1760,7 @@ void VentilatorController::evaluateAlarms()
          tr("%1 L/min above the %2 L/min limit")
              .arg(QString::number(m_expMinVol - m_alarmHighMv, 'f', 1)).arg(m_alarmHighMv)},
 
-        {"vent.vte.low", m_running && m_vte > 0 && m_vte < m_alarmLowVt, "Critical", "Volume",
+        {"vent.vte.low", m_vte > 0 && m_vte < m_alarmLowVt, "Critical", "Volume",
          tr("Low Tidal Volume"),
          tr("VTE %1 mL below the %2 mL limit").arg(qRound(m_vte)).arg(m_alarmLowVt)},
 
@@ -1728,7 +1777,7 @@ void VentilatorController::evaluateAlarms()
          tr("Prolonged High Oxygen"),
          tr("Above 60 percent for %1 minutes - consider weaning").arg(m_highFio2Minutes)},
 
-        {"vent.driving.high", m_running && driving > 15.0, "Warning", "Pressure",
+        {"vent.driving.high", driving > 15.0, "Warning", "Pressure",
          tr("High Driving Pressure"),
          tr("%1 cmH2O, target below 15 - reduce tidal volume or raise PEEP")
              .arg(qRound(driving))}
