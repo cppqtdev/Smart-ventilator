@@ -62,8 +62,7 @@ Rectangle {
                 Layout.preferredHeight: Metrics.actionButtonHeight
                 text: qsTr("Male")
                 buttonVariant: AppButton.Primary
-                checkable: true
-                checked: pane.patientData
+                selected: pane.patientData
                          && String(pane.patientData.gender).toLowerCase() === "male"
                 onClicked: {
                     if (pane.patientData)
@@ -76,8 +75,7 @@ Rectangle {
                 Layout.preferredHeight: Metrics.actionButtonHeight
                 text: qsTr("Female")
                 buttonVariant: AppButton.Primary
-                checkable: true
-                checked: pane.patientData
+                selected: pane.patientData
                          && String(pane.patientData.gender).toLowerCase() === "female"
                 onClicked: {
                     if (pane.patientData)

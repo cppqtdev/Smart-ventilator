@@ -111,8 +111,7 @@ Item {
                             labelPadding: Spacing.md
                             text: modelData.label
                             enabled: pane.isAvailable(modelData.key)
-                            checkable: true
-                            checked: modelData.key.length > 0
+                            selected: modelData.key.length > 0
                                      && pane.pendingMode === modelData.key
                             onClicked: pane.pendingMode = modelData.key
 

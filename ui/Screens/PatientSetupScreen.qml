@@ -53,8 +53,7 @@ ScreenShell {
 
                     text: modelData.label
                     buttonVariant: AppButton.Primary
-                    checkable: true
-                    checked: screen.patientData
+                    selected: screen.patientData
                              && screen.patientData.category === modelData.key
                     onClicked: {
                         if (screen.patientData)

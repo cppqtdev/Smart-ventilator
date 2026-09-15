@@ -136,8 +136,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: toolColumn.chipMinimum
                     text: qsTr("Reference")
-                    checkable: true
-                    checked: pane.showReference
+                    selected: pane.showReference
                     onClicked: pane.showReference = !pane.showReference
                 }
 
@@ -196,8 +195,7 @@ Item {
                         Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: qsTr("Cursor 1")
-                        checkable: true
-                        checked: pane.cursor === "1"
+                        selected: pane.cursor === "1"
                         onClicked: pane.cursor = "1"
                     }
 
@@ -206,8 +204,7 @@ Item {
                         Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: qsTr("Cursor 2")
-                        checkable: true
-                        checked: pane.cursor === "2"
+                        selected: pane.cursor === "2"
                         onClicked: pane.cursor = "2"
                     }
                 }
@@ -245,7 +242,7 @@ Item {
                         Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: pane.pvRunning ? qsTr("Stop") : qsTr("Start/Stop")
-                        checked: pane.pvRunning
+                        selected: pane.pvRunning
                         onClicked: pane.togglePvTool()
                     }
 

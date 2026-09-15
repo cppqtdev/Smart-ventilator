@@ -69,8 +69,7 @@ Item {
                             required property int index
                             Layout.fillWidth: true
                             text: qsTr("Info %1").arg(index + 1)
-                            checkable: true
-                            checked: pane.infoPage === index
+                            selected: pane.infoPage === index
                             onClicked: pane.infoPage = index
                         }
                     }
@@ -156,24 +155,21 @@ Item {
                     ChipButton {
                         Layout.fillWidth: true
                         text: qsTr("Loudness")
-                        checkable: true
-                        checked: pane.settingsSelection === "loudness"
+                        selected: pane.settingsSelection === "loudness"
                         onClicked: pane.settingsSelection = "loudness"
                     }
 
                     ChipButton {
                         Layout.fillWidth: true
                         text: qsTr("Day & Night")
-                        checkable: true
-                        checked: pane.settingsSelection === "brightness"
+                        selected: pane.settingsSelection === "brightness"
                         onClicked: pane.settingsSelection = "brightness"
                     }
 
                     ChipButton {
                         Layout.fillWidth: true
                         text: qsTr("Day & Time")
-                        checkable: true
-                        checked: pane.settingsSelection === "datetime"
+                        selected: pane.settingsSelection === "datetime"
                         onClicked: pane.settingsSelection = "datetime"
                     }
                 }
@@ -238,8 +234,7 @@ Item {
                                 Layout.preferredHeight: Metrics.px(28)
                                 text: qsTr("Day")
                                 buttonVariant: AppButton.Primary
-                                checkable: true
-                                checked: pane.settingsData
+                                selected: pane.settingsData
                                          && pane.settingsData.dayNightMode === "Day"
                                 onClicked: {
                                     if (pane.settingsData)
@@ -252,8 +247,7 @@ Item {
                                 Layout.preferredHeight: Metrics.px(28)
                                 text: qsTr("Night")
                                 buttonVariant: AppButton.Primary
-                                checkable: true
-                                checked: pane.settingsData
+                                selected: pane.settingsData
                                          && pane.settingsData.dayNightMode === "Night"
                                 onClicked: {
                                     if (pane.settingsData)

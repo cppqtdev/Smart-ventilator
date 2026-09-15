@@ -18,7 +18,7 @@ AppButton {
     background: Rectangle {
         radius: chip.radius
         color: !chip.enabled ? Colors.controlDisabled
-             : chip.checked ? Colors.accent
+             : chip.active ? Colors.accent
              : chip.down ? Qt.darker(Colors.neutral, 1.15)
              : Colors.neutral
 
@@ -28,6 +28,6 @@ AppButton {
     }
 
     textColor: !chip.enabled ? Colors.textInverse
-             : chip.checked ? Colors.textPrimary
+             : chip.active ? Colors.textPrimary
              : Colors.textInverse
 }

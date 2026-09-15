@@ -48,8 +48,7 @@ Item {
                     labelPadding: Spacing.sm
                     text: entry.modelData.label
                     buttonVariant: AppButton.Neutral
-                    checkable: true
-                    checked: entry.current
+                    selected: entry.current
                     onClicked: picker.layoutSelected(entry.modelData.id)
                 }
 

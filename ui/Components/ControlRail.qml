@@ -69,7 +69,6 @@ Rectangle {
             text: qsTr("Freeze")
             buttonVariant: AppButton.Primary
             checkable: true
-            externalCheck: false
             checked: rail.frozen
             fontFamily: Typography.family
             fontSize: Typography.label

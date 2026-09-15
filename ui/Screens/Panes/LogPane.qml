@@ -45,8 +45,7 @@ Item {
 
                     Layout.preferredWidth: Math.max(Metrics.px(96), implicitWidth)
                     text: modelData.label
-                    checkable: true
-                    checked: pane.minimumLevel === modelData.level
+                    selected: pane.minimumLevel === modelData.level
                     onClicked: pane.minimumLevel = modelData.level
                 }
             }

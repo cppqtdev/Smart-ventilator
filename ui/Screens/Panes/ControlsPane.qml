@@ -25,6 +25,12 @@ Item {
 
     property string page: "basic"
 
+    // Flow or pressure triggering. The reference lights F and leaves P
+    // dark; a pair that cannot be switched is decoration, so it is a real
+    // choice here even though the controller takes a flow threshold either
+    // way today.
+    property bool triggerByFlow: true
+
     signal settingRequested(string key, real value)
 
     readonly property bool basicPage: pane.page === "basic"
@@ -68,8 +74,7 @@ Item {
             Layout.preferredHeight: Metrics.actionButtonHeight
             text: qsTr("Basic")
             buttonVariant: AppButton.Success
-            checkable: true
-            checked: switcher.basicChecked
+            selected: switcher.basicChecked
             onClicked: switcher.chose("basic")
         }
 
@@ -78,8 +83,7 @@ Item {
             Layout.preferredHeight: Metrics.actionButtonHeight
             text: qsTr("Patient")
             buttonVariant: AppButton.Success
-            checkable: true
-            checked: !switcher.basicChecked
+            selected: !switcher.basicChecked
             onClicked: switcher.chose("patient")
         }
     }
@@ -144,13 +148,18 @@ Item {
 
             ChipButton {
                 text: qsTr("F")
-                checkable: true
-                checked: true
+                selected: pane.triggerByFlow
+                onClicked: pane.triggerByFlow = true
+
+                Accessible.description: qsTr("Trigger on flow")
             }
 
             ChipButton {
                 text: qsTr("P")
-                checkable: true
+                selected: !pane.triggerByFlow
+                onClicked: pane.triggerByFlow = false
+
+                Accessible.description: qsTr("Trigger on pressure")
             }
 
             Item { Layout.fillWidth: true }

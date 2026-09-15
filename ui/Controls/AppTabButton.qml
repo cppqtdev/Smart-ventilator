@@ -13,7 +13,6 @@ AppButton {
 
     buttonVariant: tab.useSuccessPalette ? AppButton.Success
                                    : AppButton.Primary
-    checkable: true
     radius: Radius.small
     fontSize: Typography.tabLabel
     fontFamily: Typography.monoFamily
@@ -23,5 +22,5 @@ AppButton {
     Accessible.role: Accessible.PageTab
     Accessible.name: tab.text
     Accessible.checkable: true
-    Accessible.checked: tab.checked
+    Accessible.checked: tab.selected
 }

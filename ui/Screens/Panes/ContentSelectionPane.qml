@@ -83,8 +83,7 @@ Item {
                         required property var modelData
                         Layout.fillWidth: true
                         text: modelData
-                        checkable: true
-                        checked: pane.trendWindow === modelData
+                        selected: pane.trendWindow === modelData
                         onClicked: pane.trendWindow = modelData
                     }
                 }
@@ -224,8 +223,7 @@ Item {
 
                 Layout.preferredWidth: Math.max(Metrics.px(130), implicitWidth)
                 text: modelData
-                checkable: true
-                checked: grid.selection === modelData
+                selected: grid.selection === modelData
                 onClicked: grid.chosen(modelData)
             }
         }

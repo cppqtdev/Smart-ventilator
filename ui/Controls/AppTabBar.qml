@@ -49,7 +49,7 @@ Item {
                 Layout.minimumWidth: 0
 
                 text: bar.labelAt(index)
-                checked: bar.currentIndex === index
+                selected: bar.currentIndex === index
                 useSuccessPalette: bar.useSuccessPalette
 
                 onClicked: {

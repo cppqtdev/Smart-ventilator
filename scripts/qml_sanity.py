@@ -63,6 +63,18 @@ ACCESSIBLE_PROPERTIES = {
 
 ACCESSIBLE_ASSIGN = re.compile(r"\bAccessible\.(\w+)\s*:")
 
+# Members of the QtQuick.Templates controls that exist in C++ but are not
+# assignable from QML: protected virtuals, slots and signals. Assigning one
+# reads perfectly and then takes the whole type out at load with "Cannot
+# assign to non-existent property", reported several levels away from the
+# file that carries it.
+NON_ASSIGNABLE_MEMBERS = {
+    "nextCheckState", "toggle", "increase", "decrease",
+    "toggled", "clicked", "pressed", "released", "canceled",
+    "buttonChange", "mirrorChange", "itemChange", "geometryChange",
+}
+NON_ASSIGNABLE_ASSIGN = re.compile(r"^\s*(\w+)\s*:\s*")
+
 # Redeclaring one of these shadows the inherited Item property of the same
 # name. The component still loads, so the failure shows up as a layout that
 # silently collapses rather than as an error.
@@ -365,6 +377,13 @@ def main() -> int:
         element_stack = []
         root_is_qtobject = bool(re.search(r'^QtObject\s*{', text, re.M))
         for line_no, raw in enumerate(text.split("\n"), 1):
+            member = NON_ASSIGNABLE_ASSIGN.match(raw)
+            if member and member.group(1) in NON_ASSIGNABLE_MEMBERS:
+                problems.append(
+                    f"{rel}:{line_no}: '{member.group(1)}' is not assignable "
+                    f"from QML - it is a C++ member of the Templates control, "
+                    f"and assigning it takes the type out at load")
+
             decl = PROPERTY_DECL.match(raw)
             if decl:
                 name = decl.group(1)
