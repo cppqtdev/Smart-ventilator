@@ -72,9 +72,19 @@ class VentilatorController : public QObject
     Q_PROPERTY(int alarmHighPressure READ alarmHighPressure WRITE setAlarmHighPressure NOTIFY settingsChanged)
     Q_PROPERTY(int alarmLowPressure READ alarmLowPressure WRITE setAlarmLowPressure NOTIFY settingsChanged)
     Q_PROPERTY(int alarmApneaTime READ alarmApneaTime WRITE setAlarmApneaTime NOTIFY settingsChanged)
+    Q_PROPERTY(int apneaSeconds READ apneaSeconds NOTIFY measurementsChanged)
     Q_PROPERTY(int alarmLowVt READ alarmLowVt WRITE setAlarmLowVt NOTIFY settingsChanged)
     Q_PROPERTY(int alarmHighMv READ alarmHighMv WRITE setAlarmHighMv NOTIFY settingsChanged)
     Q_PROPERTY(int alarmLowSpo2 READ alarmLowSpo2 WRITE setAlarmLowSpo2 NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmLowMv READ alarmLowMv WRITE setAlarmLowMv NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmHighVt READ alarmHighVt WRITE setAlarmHighVt NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmHighRate READ alarmHighRate WRITE setAlarmHighRate NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmLowRate READ alarmLowRate WRITE setAlarmLowRate NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmHighFio2 READ alarmHighFio2 WRITE setAlarmHighFio2 NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmLowFio2 READ alarmLowFio2 WRITE setAlarmLowFio2 NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmHighEtco2 READ alarmHighEtco2 WRITE setAlarmHighEtco2 NOTIFY settingsChanged)
+    Q_PROPERTY(int alarmLowEtco2 READ alarmLowEtco2 WRITE setAlarmLowEtco2 NOTIFY settingsChanged)
+    Q_PROPERTY(bool spo2Monitored READ spo2Monitored WRITE setSpo2Monitored NOTIFY settingsChanged)
     Q_PROPERTY(bool apneaBackupEnabled READ apneaBackupEnabled WRITE setApneaBackupEnabled NOTIFY settingsChanged)
     Q_PROPERTY(int ventilationSeconds READ ventilationSeconds NOTIFY measurementsChanged)
     Q_PROPERTY(QVariantList pressureWaveform READ pressureWaveform NOTIFY waveformChanged)
@@ -206,9 +216,23 @@ public:
     int alarmHighPressure() const;
     int alarmLowPressure() const;
     int alarmApneaTime() const;
+
+    /** @return Seconds since the last detected breath, 0 while breathing. */
+    int apneaSeconds() const;
     int alarmLowVt() const;
     int alarmHighMv() const;
     int alarmLowSpo2() const;
+    int alarmLowMv() const;
+    int alarmHighVt() const;
+    int alarmHighRate() const;
+    int alarmLowRate() const;
+    int alarmHighFio2() const;
+    int alarmLowFio2() const;
+    int alarmHighEtco2() const;
+    int alarmLowEtco2() const;
+
+    /** False when the oximeter is not in use, which takes its alarms out. */
+    bool spo2Monitored() const;
     bool apneaBackupEnabled() const;
 
     /** @return Rolling pressure waveform sample buffer. */
@@ -308,6 +332,13 @@ public:
      * always started unchecked.
      */
     Q_INVOKABLE bool overridePreUseCheck(const QString &reason);
+    /**
+     * @brief The editable range of one alarm limit.
+     * @return Keys value, minimum, maximum, label and unit; empty if the
+     *         limit is not one this controller knows.
+     */
+    Q_INVOKABLE QVariantMap alarmLimitRange(const QString &limit);
+
     /** @brief Validated operator command for enabling/disabling apnea backup. */
     Q_INVOKABLE bool requestApneaBackupChange(bool enabled);
 
@@ -434,6 +465,15 @@ public slots:
     void setAlarmLowVt(int value);
     void setAlarmHighMv(int value);
     void setAlarmLowSpo2(int value);
+    void setAlarmLowMv(int value);
+    void setAlarmHighVt(int value);
+    void setAlarmHighRate(int value);
+    void setAlarmLowRate(int value);
+    void setAlarmHighFio2(int value);
+    void setAlarmLowFio2(int value);
+    void setAlarmHighEtco2(int value);
+    void setAlarmLowEtco2(int value);
+    void setSpo2Monitored(bool value);
     void setApneaBackupEnabled(bool value);
     void setOperatorId(const QString &operatorId);
     void setPatientContext(const QString &category);
@@ -468,6 +508,15 @@ private:
     QVariantMap snapshot() const;
     bool applyParameterChange(const QString &parameter, int value, bool audited);
     bool applyAlarmLimitChange(const QString &limit, int value, bool audited);
+
+    /**
+     * @brief The one place a limit's bounds are written down.
+     * @return Pointer to the member the limit stores itself in, or nullptr
+     *         when the name is not a limit. The out parameters carry the
+     *         bounds, which depend on the neighbouring limits.
+     */
+    int *alarmLimitTarget(const QString &limit, int *low, int *high,
+                          QString *label, QString *unit);
     bool validateMode(const QString &mode, QString *reason) const;
     bool validateStart(QString *reason) const;
     bool validateSettingEnvelope(const QString &parameter, int value, QString *reason) const;
@@ -536,9 +585,19 @@ private:
     int m_alarmHighPressure = 40;
     int m_alarmLowPressure = 5;
     int m_alarmApneaTime = 20;
+    int m_apneaSeconds = 0;
     int m_alarmLowVt = 300;
     int m_alarmHighMv = 12;
     int m_alarmLowSpo2 = 90;
+    int m_alarmLowMv = 4;
+    int m_alarmHighVt = 800;
+    int m_alarmHighRate = 40;
+    int m_alarmLowRate = 5;
+    int m_alarmHighFio2 = 60;
+    int m_alarmLowFio2 = 21;
+    int m_alarmHighEtco2 = 60;
+    int m_alarmLowEtco2 = 30;
+    bool m_spo2Monitored = true;
     bool m_apneaBackupEnabled = true;
     double m_phase = 0;
     int m_sampleIndex = 0;

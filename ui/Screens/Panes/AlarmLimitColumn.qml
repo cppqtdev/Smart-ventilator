@@ -28,6 +28,11 @@ ColumnLayout {
     readonly property int gaugeTextWidth:
         column.gaugeSize - column.gaugeStroke * 2 - Spacing.sm
 
+    function field(name, fallback) {
+        var value = column.entry[name]
+        return value === undefined ? fallback : value
+    }
+
     // Limits arrive as doubles. A raw one prints as 15.200000000000001,
     // which is unreadable on a ring this size.
     function show(value) {
@@ -39,8 +44,7 @@ ColumnLayout {
     }
 
     readonly property real span: Math.max(0.000001,
-        (column.entry.to !== undefined ? column.entry.to : 100)
-        - (column.entry.from !== undefined ? column.entry.from : 0))
+        column.field("to", 100) - column.field("from", 0))
 
     spacing: Spacing.md
 
@@ -48,7 +52,7 @@ ColumnLayout {
 
     Text {
         Layout.alignment: Qt.AlignHCenter
-        text: column.entry.label !== undefined ? column.entry.label : ""
+        text: column.field("label", "")
         color: Colors.textPrimary
         font.family: Typography.monoFamily
         font.pixelSize: Typography.readoutLabel
@@ -56,41 +60,24 @@ ColumnLayout {
 
     Text {
         Layout.alignment: Qt.AlignHCenter
-        text: column.entry.unit !== undefined ? column.entry.unit : ""
+        text: column.field("unit", "")
         color: Colors.textSecondary
         font.family: Typography.monoFamily
         font.pixelSize: Typography.readoutUnit
     }
 
-    RingGauge {
+    AlarmLimitRing {
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredWidth: column.gaugeSize
         Layout.preferredHeight: column.gaugeSize
-        value: column.entry.high !== undefined ? column.entry.high : 0
-        from: column.entry.from !== undefined ? column.entry.from : 0
-        to: column.entry.to !== undefined ? column.entry.to : 100
-
-        Text {
-            anchors.centerIn: parent
-            width: column.gaugeTextWidth
-            height: column.gaugeTextWidth
-            text: column.show(column.entry.high)
-            color: Colors.textPrimary
-            font.family: Typography.monoFamily
-            font.pixelSize: Typography.readoutValue
-            font.weight: Typography.bold
-            fontSizeMode: Text.Fit
-            minimumPixelSize: Typography.caption
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: column.limitRequested(
-                column.entry.key !== undefined ? column.entry.key : "",
-                column.entry.high !== undefined ? column.entry.high : 0)
-        }
+        from: column.field("from", 0)
+        to: column.field("to", 100)
+        textWidth: column.gaugeTextWidth
+        limitValue: column.field("high", 0)
+        limitKey: column.field("highKey", "")
+        crossed: column.field("highDisabled", false)
+        onPressed: column.limitRequested(column.field("highKey", ""),
+                                         column.field("high", 0))
     }
 
     Item {
@@ -106,8 +93,8 @@ ColumnLayout {
 
         Rectangle {
             readonly property real fraction: {
-                var current = column.entry.current !== undefined ? column.entry.current : 0
-                var base = column.entry.from !== undefined ? column.entry.from : 0
+                var current = column.field("current", 0)
+                var base = column.field("from", 0)
                 return Math.max(0, Math.min(1, (current - base) / column.span))
             }
 
@@ -123,35 +110,25 @@ ColumnLayout {
             anchors.left: parent.right
             anchors.leftMargin: Spacing.xs
             anchors.bottom: parent.bottom
-            text: column.entry.current !== undefined ? column.show(column.entry.current) : ""
+            text: column.show(column.field("current", undefined))
             color: Colors.textSecondary
             font.family: Typography.monoFamily
             font.pixelSize: Typography.micro
         }
     }
 
-    RingGauge {
+    AlarmLimitRing {
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredWidth: column.gaugeSize
         Layout.preferredHeight: column.gaugeSize
-        value: column.entry.low !== undefined ? column.entry.low : 0
-        from: column.entry.from !== undefined ? column.entry.from : 0
-        to: column.entry.to !== undefined ? column.entry.to : 100
-
-        Text {
-            anchors.centerIn: parent
-            width: column.gaugeTextWidth
-            height: column.gaugeTextWidth
-            text: column.show(column.entry.low)
-            color: Colors.textPrimary
-            font.family: Typography.monoFamily
-            font.pixelSize: Typography.readoutValue
-            font.weight: Typography.bold
-            fontSizeMode: Text.Fit
-            minimumPixelSize: Typography.caption
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        from: column.field("from", 0)
+        to: column.field("to", 100)
+        textWidth: column.gaugeTextWidth
+        limitValue: column.field("low", 0)
+        limitKey: column.field("lowKey", "")
+        crossed: column.field("lowDisabled", false)
+        onPressed: column.limitRequested(column.field("lowKey", ""),
+                                         column.field("low", 0))
     }
 
     Item { Layout.fillHeight: true }

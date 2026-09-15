@@ -30,6 +30,16 @@ VentilatorController::VentilatorController(DatabaseManager *database,
     m_ventilationTimer.setInterval(1000);
     connect(&m_ventilationTimer, &QTimer::timeout, this, [this]() {
         ++m_ventilationSeconds;
+
+        // Apnea is the absence of a breath, so it is counted from the
+        // measured rate rather than from anything the setpoints say. The
+        // alarm limit is in seconds, and this is the number it compares to.
+        if (m_ftotal > 0.0)
+            m_apneaSeconds = 0;
+        else
+            ++m_apneaSeconds;
+
+        evaluateAlarms();
         emit measurementsChanged();
     });
 
@@ -124,9 +134,19 @@ int VentilatorController::ventilationSeconds() const { return m_ventilationSecon
 int VentilatorController::alarmHighPressure() const { return m_alarmHighPressure; }
 int VentilatorController::alarmLowPressure() const { return m_alarmLowPressure; }
 int VentilatorController::alarmApneaTime() const { return m_alarmApneaTime; }
+int VentilatorController::apneaSeconds() const { return m_apneaSeconds; }
 int VentilatorController::alarmLowVt() const { return m_alarmLowVt; }
 int VentilatorController::alarmHighMv() const { return m_alarmHighMv; }
 int VentilatorController::alarmLowSpo2() const { return m_alarmLowSpo2; }
+int VentilatorController::alarmLowMv() const { return m_alarmLowMv; }
+int VentilatorController::alarmHighVt() const { return m_alarmHighVt; }
+int VentilatorController::alarmHighRate() const { return m_alarmHighRate; }
+int VentilatorController::alarmLowRate() const { return m_alarmLowRate; }
+int VentilatorController::alarmHighFio2() const { return m_alarmHighFio2; }
+int VentilatorController::alarmLowFio2() const { return m_alarmLowFio2; }
+int VentilatorController::alarmHighEtco2() const { return m_alarmHighEtco2; }
+int VentilatorController::alarmLowEtco2() const { return m_alarmLowEtco2; }
+bool VentilatorController::spo2Monitored() const { return m_spo2Monitored; }
 bool VentilatorController::apneaBackupEnabled() const { return m_apneaBackupEnabled; }
 
 QString VentilatorController::ventilationTime() const
@@ -414,6 +434,7 @@ void VentilatorController::startVentilation()
     }
     m_running = true;
     m_ventilationSeconds = 0;
+    m_apneaSeconds = 0;
     m_sampleTimer.start();
     m_ventilationTimer.start();
     if (m_database)
@@ -638,6 +659,58 @@ void VentilatorController::setAlarmLowSpo2(int value)
     applyAlarmLimitChange(QStringLiteral("lowSpo2"), value, false);
 }
 
+void VentilatorController::setAlarmLowMv(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("lowMv"), value, false);
+}
+
+void VentilatorController::setAlarmHighVt(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("highVt"), value, false);
+}
+
+void VentilatorController::setAlarmHighRate(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("highRate"), value, false);
+}
+
+void VentilatorController::setAlarmLowRate(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("lowRate"), value, false);
+}
+
+void VentilatorController::setAlarmHighFio2(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("highFio2"), value, false);
+}
+
+void VentilatorController::setAlarmLowFio2(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("lowFio2"), value, false);
+}
+
+void VentilatorController::setAlarmHighEtco2(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("highEtco2"), value, false);
+}
+
+void VentilatorController::setAlarmLowEtco2(int value)
+{
+    applyAlarmLimitChange(QStringLiteral("lowEtco2"), value, false);
+}
+
+void VentilatorController::setSpo2Monitored(bool value)
+{
+    if (m_spo2Monitored == value)
+        return;
+    m_spo2Monitored = value;
+    logSettingChange(QStringLiteral("Oxygen saturation monitoring"),
+                     value ? QStringLiteral("off") : QStringLiteral("on"),
+                     value ? QStringLiteral("on") : QStringLiteral("off"));
+    emit settingsChanged();
+    evaluateAlarms();
+}
+
 void VentilatorController::setApneaBackupEnabled(bool value)
 {
     requestApneaBackupChange(value);
@@ -745,27 +818,51 @@ bool VentilatorController::applyParameterChange(const QString &parameter, int va
     return true;
 }
 
-bool VentilatorController::applyAlarmLimitChange(const QString &limit, int value, bool audited)
+int *VentilatorController::alarmLimitTarget(const QString &limit, int *low, int *high,
+                                            QString *label, QString *unit)
 {
     int *target = nullptr;
+
+    if (limit == QStringLiteral("highPressure")) {
+        target = &m_alarmHighPressure; *low = qMax(10, m_alarmLowPressure + 5); *high = 80; *label = QStringLiteral("High pressure alarm"); *unit = QStringLiteral("cmH2O");
+    } else if (limit == QStringLiteral("lowPressure")) {
+        target = &m_alarmLowPressure; *low = 0; *high = qMin(40, m_alarmHighPressure - 5); *label = QStringLiteral("Low pressure alarm"); *unit = QStringLiteral("cmH2O");
+    } else if (limit == QStringLiteral("apneaTime")) {
+        target = &m_alarmApneaTime; *low = 5; *high = 60; *label = QStringLiteral("Apnea time alarm"); *unit = QStringLiteral("s");
+    } else if (limit == QStringLiteral("lowVt")) {
+        target = &m_alarmLowVt; *low = 20; *high = qMax(20, m_tidalVolume - 20); *label = QStringLiteral("Low VT alarm"); *unit = QStringLiteral("mL");
+    } else if (limit == QStringLiteral("highMv")) {
+        target = &m_alarmHighMv; *low = 1; *high = 30; *label = QStringLiteral("High MV alarm"); *unit = QStringLiteral("L/min");
+    } else if (limit == QStringLiteral("lowSpo2")) {
+        target = &m_alarmLowSpo2; *low = 70; *high = 100; *label = QStringLiteral("Low SpO2 alarm"); *unit = QStringLiteral("%");
+    } else if (limit == QStringLiteral("lowMv")) {
+        target = &m_alarmLowMv; *low = 0; *high = qMax(1, m_alarmHighMv - 1); *label = QStringLiteral("Low MV alarm"); *unit = QStringLiteral("L/min");
+    } else if (limit == QStringLiteral("highVt")) {
+        target = &m_alarmHighVt; *low = qMin(2000, m_alarmLowVt + 20); *high = 2000; *label = QStringLiteral("High VT alarm"); *unit = QStringLiteral("mL");
+    } else if (limit == QStringLiteral("highRate")) {
+        target = &m_alarmHighRate; *low = qMax(5, m_alarmLowRate + 2); *high = 80; *label = QStringLiteral("High rate alarm"); *unit = QStringLiteral("b/min");
+    } else if (limit == QStringLiteral("lowRate")) {
+        target = &m_alarmLowRate; *low = 0; *high = qMin(60, m_alarmHighRate - 2); *label = QStringLiteral("Low rate alarm"); *unit = QStringLiteral("b/min");
+    } else if (limit == QStringLiteral("highFio2")) {
+        target = &m_alarmHighFio2; *low = qMax(21, m_alarmLowFio2 + 2); *high = 100; *label = QStringLiteral("High oxygen alarm"); *unit = QStringLiteral("%");
+    } else if (limit == QStringLiteral("lowFio2")) {
+        target = &m_alarmLowFio2; *low = 18; *high = qMin(100, m_alarmHighFio2 - 2); *label = QStringLiteral("Low oxygen alarm"); *unit = QStringLiteral("%");
+    } else if (limit == QStringLiteral("highEtco2")) {
+        target = &m_alarmHighEtco2; *low = qMax(10, m_alarmLowEtco2 + 2); *high = 99; *label = QStringLiteral("High EtCO2 alarm"); *unit = QStringLiteral("mmHg");
+    } else if (limit == QStringLiteral("lowEtco2")) {
+        target = &m_alarmLowEtco2; *low = 5; *high = qMin(99, m_alarmHighEtco2 - 2); *label = QStringLiteral("Low EtCO2 alarm"); *unit = QStringLiteral("mmHg");
+    }
+
+    return target;
+}
+
+bool VentilatorController::applyAlarmLimitChange(const QString &limit, int value, bool audited)
+{
     int low = 0;
     int high = 0;
     QString label;
     QString unit;
-
-    if (limit == QStringLiteral("highPressure")) {
-        target = &m_alarmHighPressure; low = qMax(10, m_alarmLowPressure + 5); high = 80; label = QStringLiteral("High pressure alarm"); unit = QStringLiteral("cmH2O");
-    } else if (limit == QStringLiteral("lowPressure")) {
-        target = &m_alarmLowPressure; low = 0; high = qMin(40, m_alarmHighPressure - 5); label = QStringLiteral("Low pressure alarm"); unit = QStringLiteral("cmH2O");
-    } else if (limit == QStringLiteral("apneaTime")) {
-        target = &m_alarmApneaTime; low = 5; high = 60; label = QStringLiteral("Apnea time alarm"); unit = QStringLiteral("s");
-    } else if (limit == QStringLiteral("lowVt")) {
-        target = &m_alarmLowVt; low = 20; high = qMax(20, m_tidalVolume - 20); label = QStringLiteral("Low VT alarm"); unit = QStringLiteral("mL");
-    } else if (limit == QStringLiteral("highMv")) {
-        target = &m_alarmHighMv; low = 1; high = 30; label = QStringLiteral("High MV alarm"); unit = QStringLiteral("L/min");
-    } else if (limit == QStringLiteral("lowSpo2")) {
-        target = &m_alarmLowSpo2; low = 70; high = 100; label = QStringLiteral("Low SpO2 alarm"); unit = QStringLiteral("%");
-    }
+    int *target = alarmLimitTarget(limit, &low, &high, &label, &unit);
 
     if (!target) {
         const QString message = QStringLiteral("Unknown alarm limit: %1").arg(limit);
@@ -793,6 +890,25 @@ bool VentilatorController::applyAlarmLimitChange(const QString &limit, int value
     emit settingsChanged();
     evaluateAlarms();
     return true;
+}
+
+QVariantMap VentilatorController::alarmLimitRange(const QString &limit)
+{
+    int low = 0;
+    int high = 0;
+    QString label;
+    QString unit;
+    const int *target = alarmLimitTarget(limit, &low, &high, &label, &unit);
+    if (target == nullptr)
+        return {};
+
+    return {
+        { QStringLiteral("value"),   *target },
+        { QStringLiteral("minimum"), qMin(low, high) },
+        { QStringLiteral("maximum"), qMax(low, high) },
+        { QStringLiteral("label"),   label },
+        { QStringLiteral("unit"),    unit }
+    };
 }
 
 bool VentilatorController::isModeSupported(const QString &mode) const
@@ -1721,14 +1837,17 @@ void VentilatorController::evaluateAlarms()
     // deliberately not ventilating. Technical alarms - battery, gas supply,
     // device fault, backend loss - are raised elsewhere and are untouched.
     static const char *const patientConditions[] = {
-        "vent.disconnect", "vent.occlusion", "vent.paw.high", "vent.mv.high",
-        "vent.vte.low", "vent.spo2.low", "vent.etco2.high",
-        "vent.fio2.prolonged", "vent.driving.high"
+        "vent.disconnect", "vent.occlusion", "vent.paw.high", "vent.paw.low",
+        "vent.mv.high", "vent.mv.low", "vent.vte.low", "vent.vte.high",
+        "vent.rate.high", "vent.rate.low", "vent.spo2.low",
+        "vent.etco2.high", "vent.etco2.low", "vent.fio2.high", "vent.fio2.low",
+        "vent.fio2.prolonged", "vent.driving.high", "vent.apnea"
     };
 
     if (!m_running) {
         for (const char *id : patientConditions)
             m_alarmController->clearCondition(QString::fromLatin1(id));
+        m_apneaSeconds = 0;
         return;
     }
 
@@ -1764,14 +1883,62 @@ void VentilatorController::evaluateAlarms()
          tr("Low Tidal Volume"),
          tr("VTE %1 mL below the %2 mL limit").arg(qRound(m_vte)).arg(m_alarmLowVt)},
 
-        {"vent.spo2.low", m_spo2 > 0 && m_spo2 < m_alarmLowSpo2, "Warning", "Oximetry",
+        {"vent.apnea", m_apneaSeconds > m_alarmApneaTime, "Critical", "Rate",
+         tr("Apnea"),
+         tr("No breath for %1 s, limit %2 s")
+             .arg(m_apneaSeconds).arg(m_alarmApneaTime)},
+
+        {"vent.paw.low", m_ppeak > 0 && m_ppeak < m_alarmLowPressure, "Warning", "Pressure",
+         tr("Low Pressure"),
+         tr("Ppeak %1 cmH2O below the %2 cmH2O limit")
+             .arg(qRound(m_ppeak)).arg(m_alarmLowPressure)},
+
+        {"vent.mv.low", m_ftotal > 0 && m_expMinVol < m_alarmLowMv, "Critical", "Volume",
+         tr("Low Minute Volume"),
+         tr("%1 L/min below the %2 L/min limit")
+             .arg(QString::number(m_expMinVol, 'f', 1)).arg(m_alarmLowMv)},
+
+        {"vent.vte.high", m_vte > m_alarmHighVt, "Warning", "Volume",
+         tr("High Tidal Volume"),
+         tr("VTE %1 mL above the %2 mL limit").arg(qRound(m_vte)).arg(m_alarmHighVt)},
+
+        {"vent.rate.high", m_ftotal > m_alarmHighRate, "Warning", "Rate",
+         tr("High Respiratory Rate"),
+         tr("%1 b/min above the %2 b/min limit")
+             .arg(qRound(m_ftotal)).arg(m_alarmHighRate)},
+
+        {"vent.rate.low", m_ftotal > 0 && m_ftotal < m_alarmLowRate, "Warning", "Rate",
+         tr("Low Respiratory Rate"),
+         tr("%1 b/min below the %2 b/min limit")
+             .arg(qRound(m_ftotal)).arg(m_alarmLowRate)},
+
+        {"vent.spo2.low", m_spo2Monitored && m_spo2 > 0 && m_spo2 < m_alarmLowSpo2,
+         "Warning", "Oximetry",
          tr("Low SpO2"),
          tr("SpO2 %1 percent below the %2 percent limit")
              .arg(qRound(m_spo2)).arg(m_alarmLowSpo2)},
 
-        {"vent.etco2.high", m_etco2 > 50, "Warning", "Capnography",
+        {"vent.etco2.high", m_etco2 > m_alarmHighEtco2, "Warning", "Capnography",
          tr("High EtCO2"),
-         tr("End tidal carbon dioxide %1 mmHg").arg(qRound(m_etco2))},
+         tr("End tidal carbon dioxide %1 mmHg above the %2 mmHg limit")
+             .arg(qRound(m_etco2)).arg(m_alarmHighEtco2)},
+
+        {"vent.etco2.low", m_ftotal > 0 && m_etco2 > 0 && m_etco2 < m_alarmLowEtco2,
+         "Warning", "Capnography",
+         tr("Low EtCO2"),
+         tr("End tidal carbon dioxide %1 mmHg below the %2 mmHg limit")
+             .arg(qRound(m_etco2)).arg(m_alarmLowEtco2)},
+
+        {"vent.fio2.high", m_measuredFio2 > m_alarmHighFio2, "Warning", "Oxygen",
+         tr("High Oxygen"),
+         tr("Delivered %1 percent above the %2 percent limit")
+             .arg(qRound(m_measuredFio2)).arg(m_alarmHighFio2)},
+
+        {"vent.fio2.low", m_measuredFio2 > 0 && m_measuredFio2 < m_alarmLowFio2,
+         "Critical", "Oxygen",
+         tr("Low Oxygen"),
+         tr("Delivered %1 percent below the %2 percent limit")
+             .arg(qRound(m_measuredFio2)).arg(m_alarmLowFio2)},
 
         {"vent.fio2.prolonged", m_highFio2Minutes > 120 && m_fio2 > 60, "Warning", "Oxygen",
          tr("Prolonged High Oxygen"),

@@ -18,48 +18,64 @@ Item {
     signal modeConfirmed(string mode)
     signal cancelled()
 
+    // The reference names the modes the way the device is badged, which is
+    // not what the controller calls them. Each chip therefore carries the
+    // controller mode it stands for; a chip with no mode is one this device
+    // is not fitted with and is drawn greyed, exactly as the reference draws
+    // the noninvasive row.
     readonly property var groups: [
         {
-            title: qsTr("Volume controlled"),
-            modes: ["VCV", "PRVC", "SIMV"]
+            title: qsTr("Volume controlled (Adaptive)"),
+            modes: [
+                { label: "APVcmv",  key: "PRVC" },
+                { label: "APVsimv", key: "" },
+                { label: "(S)CMV",  key: "VCV" },
+                { label: "SIMV",    key: "SIMV" }
+            ]
         },
         {
-            title: qsTr("Pressure controlled"),
-            modes: ["PCV", "PSV", "BiPAP", "APRV"]
+            title: qsTr("Pressure controlled (Biphasic)"),
+            modes: [
+                { label: "PCV+",    key: "PCV" },
+                { label: "PSIMV+",  key: "" },
+                { label: "SPONT",   key: "PSV" },
+                { label: "CPAP",    key: "CPAP" },
+                { label: "DuoPAP",  key: "BiPAP" },
+                { label: "APRV",    key: "" }
+            ]
         },
         {
-            title: qsTr("Spontaneous"),
-            modes: ["CPAP"]
-        },
-        {
-            title: qsTr("Intelligent ventilation"),
-            modes: ["ASV"]
+            title: qsTr("Intelligent Ventilation"),
+            modes: [
+                { label: "ASV",             key: "ASV" },
+                { label: "INTELLiVENT-ASV", key: "" }
+            ]
         },
         {
             title: qsTr("Noninvasive"),
-            modes: ["NIV", "NIV-ST"]
-        },
-        {
-            title: qsTr("High frequency"),
-            modes: ["HFOV", "HFO2"]
+            modes: [
+                { label: "NIV",      key: "" },
+                { label: "NIV-ST",   key: "" },
+                { label: "HiFlowO2", key: "" }
+            ]
         }
     ]
 
-    function labelFor(mode) {
-        if (!pane.catalog)
-            return mode
-        var info = pane.catalog.modeInfo(mode)
-        if (info === undefined || info === null || info.label === undefined)
-            return mode
-        return info.label
-    }
-
     // A mode the controller will refuse is shown greyed rather than hidden,
     // so the operator can see the device has the row but not the option.
-    function isAvailable(mode) {
-        if (!pane.ventilatorData)
+    function isAvailable(key) {
+        if (!key || !pane.ventilatorData)
             return false
-        return pane.ventilatorData.isModeSupported(mode)
+        return pane.ventilatorData.isModeSupported(key)
+    }
+
+    function describe(key) {
+        if (!key || !pane.catalog)
+            return ""
+        var info = pane.catalog.modeInfo(key)
+        if (info === undefined || info === null || info.label === undefined)
+            return ""
+        return info.label
     }
 
     ColumnLayout {
@@ -91,13 +107,16 @@ Item {
                         delegate: ChipButton {
                             required property var modelData
 
-                            width: Math.max(Metrics.px(78), implicitWidth)
+                            width: Math.max(Metrics.px(96), implicitWidth)
                             labelPadding: Spacing.md
-                            text: pane.labelFor(modelData)
-                            enabled: pane.isAvailable(modelData)
+                            text: modelData.label
+                            enabled: pane.isAvailable(modelData.key)
                             checkable: true
-                            checked: pane.pendingMode === modelData
-                            onClicked: pane.pendingMode = modelData
+                            checked: modelData.key.length > 0
+                                     && pane.pendingMode === modelData.key
+                            onClicked: pane.pendingMode = modelData.key
+
+                            Accessible.description: pane.describe(modelData.key)
                         }
                     }
                 }

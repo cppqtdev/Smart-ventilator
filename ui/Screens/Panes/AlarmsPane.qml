@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 import QtQuick
 import QtQuick.Layouts
+import "../../Components"
 import "../../Controls"
 import "../../Theme"
 
@@ -61,31 +62,55 @@ Item {
         return value === undefined ? 0 : Math.round(value)
     }
 
-    // Keys match VentilatorController::requestAlarmLimitChange. A key it does
-    // not know is refused, which is what made every adjustment here fail.
+    // The reference draws four limits on page one and three on page two,
+    // each one a high ring, the measured value as a bar, and a low ring.
+    // highKey and lowKey name the limit each ring changes; a ring with no
+    // key is a fixed bound and is shown but not editable.
     readonly property var pageOne: [
-        { key: "highPressure", label: qsTr("Paw"),       unit: "cmH2O",
-          high: pane.limit("alarmHighPressure", 30), low: pane.limit("alarmLowPressure", 5),
-          current: pane.reading("ppeak"), from: 0, to: 80 },
-        { key: "highMv",       label: qsTr("ExpMinVol"), unit: "l/min",
-          high: pane.limit("alarmHighMv", 12), low: 4,
+        { label: qsTr("Oxygen"), unit: "%",
+          highKey: "highFio2", high: pane.limit("alarmHighFio2", 60),
+          lowKey: "lowFio2",  low: pane.limit("alarmLowFio2", 21),
+          current: pane.reading("measuredFio2"), from: 0, to: 100 },
+
+        { label: qsTr("ExpMinVol"), unit: "l/min",
+          highKey: "highMv", high: pane.limit("alarmHighMv", 12),
+          lowKey: "lowMv",   low: pane.limit("alarmLowMv", 4),
           current: pane.reading("expMinVol"), from: 0, to: 30 },
-        { key: "apneaTime",    label: qsTr("Apnea"),     unit: "s",
-          high: pane.limit("alarmApneaTime", 20), low: 5,
-          current: pane.reading("ftotal"), from: 0, to: 60 },
-        { key: "lowVt",        label: qsTr("VT"),        unit: "ml",
-          high: pane.limit("tidalVolume", 500), low: pane.limit("alarmLowVt", 270),
+
+        { label: qsTr("Ftotal"), unit: "b/min",
+          highKey: "highRate", high: pane.limit("alarmHighRate", 40),
+          lowKey: "lowRate",   low: pane.limit("alarmLowRate", 5),
+          current: pane.reading("ftotal"), from: 0, to: 80 },
+
+        { label: qsTr("VT"), unit: "ml",
+          highKey: "highVt", high: pane.limit("alarmHighVt", 800),
+          lowKey: "lowVt",   low: pane.limit("alarmLowVt", 300),
           current: pane.reading("vte"), from: 0, to: 2000 }
     ]
 
     readonly property var pageTwo: [
-        { key: "lowSpo2",      label: qsTr("SpO2"),      unit: "%",
-          high: 100, low: pane.limit("alarmLowSpo2", 90),
-          current: pane.reading("spo2"), from: 0, to: 100 },
-        { key: "lowPressure",  label: qsTr("Paw low"),   unit: "cmH2O",
-          high: pane.limit("alarmHighPressure", 30), low: pane.limit("alarmLowPressure", 5),
-          current: pane.reading("pmean"), from: 0, to: 80 }
+        { label: qsTr("Apnea Time"), unit: "s",
+          highKey: "apneaTime", high: pane.limit("alarmApneaTime", 20),
+          lowKey: "",           low: 5,
+          current: pane.reading("apneaSeconds"), from: 0, to: 60 },
+
+        { label: qsTr("PetCO2"), unit: "mmHg",
+          highKey: "highEtco2", high: pane.limit("alarmHighEtco2", 60),
+          lowKey: "lowEtco2",   low: pane.limit("alarmLowEtco2", 30),
+          current: pane.reading("etco2"), from: 0, to: 99 },
+
+        // The reference crosses the SpO2 high ring out, because an upper
+        // saturation limit is meaningless. Here the cross also carries the
+        // real state: it is drawn when the oximeter is not in use.
+        { label: qsTr("SpO2"), unit: "%",
+          highKey: "", high: 100, highDisabled: true,
+          lowKey: "lowSpo2", low: pane.limit("alarmLowSpo2", 90),
+          lowDisabled: !pane.monitoringSpo2,
+          current: pane.reading("spo2"), from: 0, to: 100 }
     ]
+
+    readonly property bool monitoringSpo2:
+        pane.ventilatorData ? pane.ventilatorData.spo2Monitored : true
 
     ColumnLayout {
         anchors.fill: parent
@@ -115,7 +140,7 @@ Item {
                     entry: modelData
                     gaugeSize: pane.gaugeSize
                     onLimitRequested: function (key, value) {
-                        pane.limitRequested(key, value)
+                        pane.editLimit(key)
                     }
                 }
             }
@@ -209,5 +234,18 @@ Item {
                 visible: alarmLog.count === 0
             }
         }
+    }
+
+    // Pressing a limit ring opens this, and only Apply reaches the device.
+    LimitEditor {
+        id: limitEditor
+        anchors.fill: parent
+        onAccepted: function (key, value) { pane.limitRequested(key, value) }
+    }
+
+    function editLimit(key) {
+        if (!key || !pane.ventilatorData)
+            return
+        limitEditor.open(key, pane.ventilatorData.alarmLimitRange(key))
     }
 }
