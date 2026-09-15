@@ -80,6 +80,13 @@ QtObject {
     readonly property int readoutLabel: typography.px(16)
     readonly property int readoutValue: typography.px(32)
     readonly property int readoutUnit: typography.px(15)
+
+    // The lung panel sets its readouts either side of the picture rather
+    // than under it, and the reference draws them smaller there so the
+    // picture keeps the middle of the panel.
+    readonly property int readoutLabelCompact: typography.px(11)
+    readonly property int readoutValueCompact: typography.px(21)
+    readonly property int readoutUnitCompact: typography.px(9)
     readonly property int channelLabel: typography.px(17)
     readonly property int axisTick: typography.px(14)
     readonly property int tabLabel: typography.px(16)

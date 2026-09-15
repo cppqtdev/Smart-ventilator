@@ -18,6 +18,7 @@ Item {
     property string gender: ""
     property string heightText: ""
     property string weightText: ""
+    property int fontSize: Typography.label
 
     signal clicked()
 
@@ -36,7 +37,7 @@ Item {
             text: summary.gender
             color: Colors.textPrimary
             font.family: Typography.family
-            font.pixelSize: Typography.label
+            font.pixelSize: summary.fontSize
             font.weight: Typography.bold
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideRight
@@ -47,7 +48,7 @@ Item {
             text: summary.heightText
             color: Colors.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.label
+            font.pixelSize: summary.fontSize
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideRight
         }
@@ -57,7 +58,7 @@ Item {
             text: summary.weightText
             color: Colors.textSecondary
             font.family: Typography.family
-            font.pixelSize: Typography.label
+            font.pixelSize: summary.fontSize
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideRight
         }

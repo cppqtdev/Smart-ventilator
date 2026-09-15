@@ -14,6 +14,9 @@ Column {
     property string unit: ""
     property color valueColor: Colors.textPrimary
     property int alignment: Text.AlignLeft
+    property int labelSize: Typography.readoutLabel
+    property int valueSize: Typography.readoutValue
+    property int unitSize: Typography.readoutUnit
 
     spacing: Metrics.px(2)
 
@@ -22,7 +25,7 @@ Column {
         text: readout.label
         color: Colors.textPrimary
         font.family: Typography.monoFamily
-        font.pixelSize: Typography.readoutLabel
+        font.pixelSize: readout.labelSize
         horizontalAlignment: readout.alignment
         elide: Text.ElideRight
     }
@@ -32,7 +35,7 @@ Column {
         text: readout.value
         color: readout.valueColor
         font.family: Typography.monoFamily
-        font.pixelSize: Typography.readoutValue
+        font.pixelSize: readout.valueSize
         font.weight: Typography.bold
         horizontalAlignment: readout.alignment
     }
@@ -42,8 +45,9 @@ Column {
         text: readout.unit
         color: Colors.textPrimary
         font.family: Typography.monoFamily
-        font.pixelSize: Typography.readoutUnit
+        font.pixelSize: readout.unitSize
         horizontalAlignment: readout.alignment
+        elide: Text.ElideRight
         visible: readout.unit.length > 0
     }
 }

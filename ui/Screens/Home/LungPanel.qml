@@ -59,13 +59,61 @@ Rectangle {
         onRunningChanged: { if (!running) panel.inflation = 0 }
     }
 
+    // The readouts used to stack under the picture, which left the picture
+    // a few pixels of a shared half-width panel. The reference sets them in
+    // a column either side instead, so the picture keeps the middle.
+    readonly property var leftReadouts: {
+        var all = panel.readouts ? panel.readouts : []
+        return all.slice(0, Math.ceil(all.length / 2))
+    }
+    readonly property var rightReadouts: {
+        var all = panel.readouts ? panel.readouts : []
+        return all.slice(Math.ceil(all.length / 2))
+    }
+
+    component ReadoutColumn: ColumnLayout {
+        id: readoutColumn
+
+        property var entries: []
+        property int textAlignment: Text.AlignLeft
+
+        Layout.fillHeight: true
+        Layout.fillWidth: false
+        Layout.preferredWidth: Metrics.px(62)
+        spacing: Spacing.sm
+
+        Repeater {
+            model: readoutColumn.entries
+
+            delegate: NumericReadout {
+                required property var modelData
+
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+
+                alignment: readoutColumn.textAlignment
+                labelSize: Typography.readoutLabelCompact
+                valueSize: Typography.readoutValueCompact
+                unitSize: Typography.readoutUnitCompact
+
+                label: modelData.label
+                value: modelData.value
+                unit: modelData.unit
+                valueColor: modelData.accent === true ? Colors.accent : Colors.textPrimary
+            }
+        }
+
+        Item { Layout.fillHeight: true }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Spacing.md
         spacing: Spacing.sm
 
         PatientSummary {
-            Layout.alignment: Qt.AlignTop
+            Layout.alignment: Qt.AlignTop | Qt.AlignLeft
+            fontSize: Typography.readoutLabelCompact
             gender: panel.patient.gender !== undefined ? panel.patient.gender : ""
             heightText: panel.patient.height !== undefined
                         ? qsTr("%1 cm").arg(panel.patient.height) : ""
@@ -74,49 +122,41 @@ Rectangle {
             onClicked: panel.patientClicked()
         }
 
-        Item {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            spacing: Spacing.xs
 
-            Image {
-                id: lungImage
-                anchors.centerIn: parent
-                height: Math.min(parent.height, parent.width)
-                width: height
-                source: "qrc:/ui/Assets/lungs.png"
-                fillMode: Image.PreserveAspectFit
-                smooth: true
-                asynchronous: true
+            ReadoutColumn {
+                entries: panel.leftReadouts
+                textAlignment: Text.AlignLeft
+            }
 
-                transform: Scale {
-                    origin.x: lungImage.width / 2
-                    origin.y: lungImage.height * 0.18
-                    xScale: 1.0 + panel.inflation * 0.035
-                    yScale: 1.0 + panel.inflation * 0.075
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumWidth: Metrics.px(80)
+
+                Image {
+                    id: lungImage
+                    anchors.fill: parent
+                    source: "qrc:/ui/Assets/lungs.png"
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    asynchronous: true
+
+                    transform: Scale {
+                        origin.x: lungImage.width / 2
+                        origin.y: lungImage.height * 0.18
+                        xScale: 1.0 + panel.inflation * 0.035
+                        yScale: 1.0 + panel.inflation * 0.075
+                    }
                 }
             }
-        }
 
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 3
-            rowSpacing: Spacing.sm
-            columnSpacing: Spacing.md
-
-            Repeater {
-                model: panel.readouts
-
-                delegate: NumericReadout {
-                    required property var modelData
-
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: Metrics.px(78)
-
-                    label: modelData.label
-                    value: modelData.value
-                    unit: modelData.unit
-                    valueColor: modelData.accent === true ? Colors.accent : Colors.textPrimary
-                }
+            ReadoutColumn {
+                entries: panel.rightReadouts
+                textAlignment: Text.AlignRight
             }
         }
     }
