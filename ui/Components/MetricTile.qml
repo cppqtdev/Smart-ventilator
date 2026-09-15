@@ -59,6 +59,13 @@ Rectangle {
         return ""
     }
 
+    // A Text reserves a whole line box, and for the 32 value that is nearly
+    // twice what the digits occupy. Each row is given the height its glyphs
+    // need rather than the line box the font asks for.
+    readonly property int valueRowHeight: Math.round(Typography.tileValue * 1.08)
+    readonly property int limitRowHeight: Math.round(Typography.tileLimit * 1.15)
+    readonly property int unitRowHeight: Math.round(Typography.tileUnit * 1.15)
+
     implicitHeight: Metrics.tileHeightMin
     radius: Radius.medium
     color: Colors.surface
@@ -68,15 +75,21 @@ Rectangle {
                 : tile.cautionary ? Colors.alarmMedium
                 : tile.alarmTint
 
-    ColumnLayout {
+    // The label and the reading sit at the top; the two limit lines are
+    // anchored to the bottom. Stacking all four in one column left the
+    // bottom line 3 from the edge, inside the corner radius, because three
+    // Text line boxes come to more than the tile holds. Anchoring the
+    // bottom block makes the clearance the margin, whatever the metrics of
+    // the font turn out to be.
+    Item {
         anchors.fill: parent
-        // The reference tile clears its text by the same 13 on every side.
-        // Anything less puts the bottom row inside the corner radius.
         anchors.margins: Metrics.px(13)
-        spacing: Spacing.xs
 
         RowLayout {
-            Layout.fillWidth: true
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: tile.valueRowHeight
             spacing: Spacing.sm
 
             AppIcon {
@@ -87,18 +100,19 @@ Rectangle {
             }
 
             Text {
-                Layout.alignment: Qt.AlignTop
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 text: tile.label
                 color: Colors.textPrimary
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.tileLabel
                 font.weight: Typography.bold
                 elide: Text.ElideRight
-                Layout.fillWidth: true
+                verticalAlignment: Text.AlignVCenter
             }
 
             Text {
-                Layout.alignment: Qt.AlignTop
+                Layout.fillHeight: true
                 text: String(tile.value)
                 color: tile.critical ? Colors.alarmHigh
                      : tile.cautionary ? Colors.alarmMedium
@@ -107,55 +121,68 @@ Rectangle {
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.tileValue
                 font.weight: Typography.bold
+                verticalAlignment: Text.AlignVCenter
             }
         }
 
-        Item { Layout.fillHeight: true }
+        Column {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            spacing: 0
 
-        Text {
-            Layout.fillWidth: true
-            text: tile.upperText
-            color: Colors.textPrimary
-            font.family: Typography.monoFamily
-            font.pixelSize: Typography.tileLimit
-            elide: Text.ElideRight
-            visible: tile.upperText.length > 0
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Spacing.sm
-
-            // The lower limit keeps its place in the row even when it is
-            // empty, because the reference puts the unit against the right
-            // edge on every tile and an absent limit must not pull it left.
             Text {
-                Layout.fillWidth: true
-                text: tile.lowerText
+                width: parent.width
+                height: visible ? tile.limitRowHeight : 0
+                text: tile.footnote
+                color: Colors.textSecondary
+                font.family: Typography.monoFamily
+                font.pixelSize: Typography.micro
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+                visible: tile.footnote.length > 0
+            }
+
+            Text {
+                width: parent.width
+                height: visible ? tile.limitRowHeight : 0
+                text: tile.upperText
                 color: Colors.textPrimary
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.tileLimit
                 elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+                visible: tile.upperText.length > 0
             }
 
-            Text {
-                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                text: tile.unit
-                color: Colors.textPrimary
-                font.family: Typography.monoFamily
-                font.pixelSize: Typography.tileUnit
-                horizontalAlignment: Text.AlignRight
-            }
-        }
+            Item {
+                width: parent.width
+                height: tile.unitRowHeight
 
-        Text {
-            Layout.fillWidth: true
-            text: tile.footnote
-            color: Colors.textSecondary
-            font.family: Typography.monoFamily
-            font.pixelSize: Typography.micro
-            elide: Text.ElideRight
-            visible: tile.footnote.length > 0 && tile.height >= Metrics.px(96)
+                // The lower limit keeps its place even when it is empty,
+                // because the reference puts the unit against the right edge
+                // on every tile and an absent limit must not pull it left.
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - unitText.width - Spacing.sm
+                    text: tile.lowerText
+                    color: Colors.textPrimary
+                    font.family: Typography.monoFamily
+                    font.pixelSize: Typography.tileLimit
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    id: unitText
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: tile.unit
+                    color: Colors.textPrimary
+                    font.family: Typography.monoFamily
+                    font.pixelSize: Typography.tileUnit
+                }
+            }
         }
     }
 
