@@ -13,7 +13,13 @@ Item {
 
     property var eventData
     property var logData
+    property var database
     property int pageIndex: 0
+
+    // Where the last export went, so the operator can be told rather than
+    // left wondering whether the press did anything.
+    property string lastExportPath: ""
+    property bool lastExportFailed: false
 
     readonly property var filters: [
         { key: "all",     label: qsTr("All") },
@@ -38,15 +44,50 @@ Item {
         anchors.fill: parent
         spacing: Metrics.gutter
 
-        SubTabStrip {
+        RowLayout {
             Layout.fillWidth: true
-            model: pane.filters
-            currentIndex: pane.pageIndex
-            onActivated: function (index) {
-                pane.pageIndex = index
-                if (pane.eventData && index !== 3)
-                    pane.eventData.filter = pane.filters[index].key
+            spacing: Metrics.gutter
+
+            SubTabStrip {
+                Layout.fillWidth: true
+                model: pane.filters
+                currentIndex: pane.pageIndex
+                onActivated: function (index) {
+                    pane.pageIndex = index
+                    if (pane.eventData && index !== 3)
+                        pane.eventData.filter = pane.filters[index].key
+                }
             }
+
+            // The export existed and nothing called it, so an audit trail
+            // that cannot leave the device is an audit trail nobody can
+            // review after an incident.
+            AppButton {
+                Layout.preferredWidth: Math.max(Metrics.px(96), implicitWidth)
+                Layout.preferredHeight: Metrics.px(34)
+                text: qsTr("Export")
+                buttonVariant: AppButton.Primary
+                enabled: pane.database !== null && pane.database !== undefined
+                onClicked: {
+                    if (!pane.database)
+                        return
+                    var written = pane.database.exportAuditTrail("")
+                    pane.lastExportPath = written
+                    pane.lastExportFailed = written.length === 0
+                }
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            visible: pane.lastExportPath.length > 0 || pane.lastExportFailed
+            text: pane.lastExportFailed
+                  ? qsTr("Export failed. The audit trail was not written.")
+                  : qsTr("Exported to %1").arg(pane.lastExportPath)
+            color: pane.lastExportFailed ? Colors.critical : Colors.textSecondary
+            elide: Text.ElideMiddle
+            font.family: Typography.monoFamily
+            font.pixelSize: Typography.micro
         }
 
         LogPane {

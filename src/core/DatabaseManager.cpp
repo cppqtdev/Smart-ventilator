@@ -255,6 +255,22 @@ private:
     QSqlDatabase m_database;
 };
 
+namespace {
+
+// A year of events, capped by count so a busy device cannot fill the disk
+// before the year is out. Both are deliberately generous: the point is that
+// the disk cannot fill, not that the log is short.
+constexpr int kRetentionDays = 365;
+constexpr int kRetentionRows = 200000;
+// The operator is told to export once the log passes this share of the cap,
+// so a prune never takes away rows nobody has had the chance to keep.
+constexpr double kNearCapacityFraction = 0.8;
+
+const char *kPrunedHashKey = "audit/prunedThroughHash";
+const char *kPrunedCountKey = "audit/prunedCount";
+
+} // namespace
+
 DatabaseManager::DatabaseManager(QObject *parent)
     : QObject(parent)
 {
@@ -334,6 +350,11 @@ bool DatabaseManager::initialize()
 
     setStorageState(true, false, false, QStringLiteral("Ready"));
     startAsyncWriter();
+
+    // An audit trail that grows without bound fills the disk, which is a
+    // failure during use. Once per start is enough: the policy is a year and
+    // two hundred thousand rows, not a busy loop.
+    pruneHistory();
     return true;
 }
 
@@ -638,7 +659,16 @@ bool DatabaseManager::verifyAuditTrail()
         return false;
     }
 
+    // A pruned log's first surviving row was hashed against a row that is
+    // gone. The anchor is that row's hash, so what remains still verifies.
     QString previousHash;
+    {
+        QSqlQuery anchor(m_database);
+        anchor.prepare(QStringLiteral("SELECT value FROM clinical_state WHERE key = :key"));
+        anchor.bindValue(QStringLiteral(":key"), QLatin1String(kPrunedHashKey));
+        if (anchor.exec() && anchor.next())
+            previousHash = anchor.value(0).toString();
+    }
     int row = 0;
     while (query.next()) {
         ++row;
@@ -975,25 +1005,187 @@ QVariantList DatabaseManager::getCentralPatients() const
     return result;
 }
 
-QString DatabaseManager::exportAuditSummary() const
+
+int DatabaseManager::historyCapacity() const
+{
+    return kRetentionRows;
+}
+
+int DatabaseManager::eventCount() const
+{
+    if (!m_database.isOpen())
+        return 0;
+    QSqlQuery query(m_database);
+    if (!query.exec(QStringLiteral("SELECT COUNT(*) FROM events")) || !query.next())
+        return 0;
+    return query.value(0).toInt();
+}
+
+bool DatabaseManager::historyNearCapacity() const
+{
+    return eventCount() >= static_cast<int>(kRetentionRows * kNearCapacityFraction);
+}
+
+int DatabaseManager::pruneHistory()
+{
+    if (!m_database.isOpen() || m_database.isOpenError())
+        return 0;
+
+    const bool wasNear = historyNearCapacity();
+
+    // Read then write on one connection is an upgrade the busy handler does
+    // not retry, so the whole prune is one immediate transaction.
+    QSqlQuery begin(m_database);
+    if (!begin.exec(QStringLiteral("BEGIN IMMEDIATE"))) {
+        setError(QStringLiteral("Prune failed to begin: ") + begin.lastError().text());
+        return 0;
+    }
+
+    const QString cutoff = QDateTime::currentDateTime()
+                               .addDays(-kRetentionDays)
+                               .toString(Qt::ISODate);
+
+    // The newest id that has to go: older than the cutoff, or beyond the row
+    // cap counting back from the newest.
+    qint64 lastDoomedId = -1;
+    {
+        QSqlQuery pick(m_database);
+        pick.prepare(QStringLiteral(
+            "SELECT MAX(id) FROM events WHERE created_at < :cutoff OR id <= "
+            "(SELECT IFNULL(MAX(id), 0) - :keep FROM events)"));
+        pick.bindValue(QStringLiteral(":cutoff"), cutoff);
+        pick.bindValue(QStringLiteral(":keep"), kRetentionRows);
+        if (pick.exec() && pick.next() && !pick.value(0).isNull())
+            lastDoomedId = pick.value(0).toLongLong();
+        pick.finish();
+    }
+
+    if (lastDoomedId < 0) {
+        QSqlQuery rollback(m_database);
+        rollback.exec(QStringLiteral("ROLLBACK"));
+        return 0;
+    }
+
+    // The hash of the last row to go becomes the anchor the remaining chain
+    // verifies from. Without it the first surviving row looks broken.
+    QString anchorHash;
+    qint64 removed = 0;
+    {
+        QSqlQuery anchor(m_database);
+        anchor.prepare(QStringLiteral("SELECT hash FROM events WHERE id = :id"));
+        anchor.bindValue(QStringLiteral(":id"), lastDoomedId);
+        if (anchor.exec() && anchor.next())
+            anchorHash = anchor.value(0).toString();
+        anchor.finish();
+
+        QSqlQuery count(m_database);
+        count.prepare(QStringLiteral("SELECT COUNT(*) FROM events WHERE id <= :id"));
+        count.bindValue(QStringLiteral(":id"), lastDoomedId);
+        if (count.exec() && count.next())
+            removed = count.value(0).toLongLong();
+        count.finish();
+    }
+
+    QSqlQuery drop(m_database);
+    drop.prepare(QStringLiteral("DELETE FROM events WHERE id <= :id"));
+    drop.bindValue(QStringLiteral(":id"), lastDoomedId);
+    const bool droppedEvents = drop.exec();
+    drop.finish();
+
+    QSqlQuery dropAlarms(m_database);
+    dropAlarms.prepare(QStringLiteral("DELETE FROM alarms WHERE created_at < :cutoff"));
+    dropAlarms.bindValue(QStringLiteral(":cutoff"), cutoff);
+    dropAlarms.exec();
+    dropAlarms.finish();
+
+    QSqlQuery anchorWrite(m_database);
+    anchorWrite.prepare(QStringLiteral(
+        "INSERT INTO clinical_state (key, value) VALUES (:key, :value) "
+        "ON CONFLICT(key) DO UPDATE SET value = :value"));
+    anchorWrite.bindValue(QStringLiteral(":key"), QLatin1String(kPrunedHashKey));
+    anchorWrite.bindValue(QStringLiteral(":value"), anchorHash);
+    anchorWrite.exec();
+    anchorWrite.finish();
+
+    QSqlQuery countWrite(m_database);
+    countWrite.prepare(QStringLiteral(
+        "INSERT INTO clinical_state (key, value) VALUES (:key, :value) "
+        "ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + :value"));
+    countWrite.bindValue(QStringLiteral(":key"), QLatin1String(kPrunedCountKey));
+    countWrite.bindValue(QStringLiteral(":value"), QString::number(removed));
+    countWrite.exec();
+    countWrite.finish();
+
+    QSqlQuery finish(m_database);
+    if (!droppedEvents || !finish.exec(QStringLiteral("COMMIT"))) {
+        QSqlQuery rollback(m_database);
+        rollback.exec(QStringLiteral("ROLLBACK"));
+        setError(QStringLiteral("Prune failed: ") + drop.lastError().text());
+        return 0;
+    }
+
+    // The deletion is itself an auditable act, so it goes in the log that
+    // survived it, on the far side of the transaction that did it.
+    if (removed > 0) {
+        logEvent(QStringLiteral("Storage"),
+                 QStringLiteral("Retention: removed %1 event(s) older than %2 days "
+                                "or beyond %3 rows")
+                     .arg(removed).arg(kRetentionDays).arg(kRetentionRows),
+                 QStringLiteral("Completed"));
+        emit historyPruned(static_cast<int>(removed));
+    }
+
+    const bool nowNear = historyNearCapacity();
+    if (nowNear != wasNear)
+        emit historyNearCapacityChanged(nowNear);
+
+    return static_cast<int>(removed);
+}
+
+QString DatabaseManager::exportAuditTrail(const QString &directory) const
 {
     if (!m_database.isOpen())
         return {};
-    const QString path = QFileInfo(m_databasePath).absolutePath()
+
+    const QString folder = directory.isEmpty()
+        ? QFileInfo(m_databasePath).absolutePath()
+        : directory;
+    QDir().mkpath(folder);
+
+    const QString path = folder
         + QStringLiteral("/audit_export_%1.csv")
               .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
         return {};
+
     QTextStream out(&file);
-    out << "timestamp,type,source,description,status\n";
+
+    // A preamble, so the file says what wrote it and where its chain starts.
+    // Without the anchor a verifier cannot tell a pruned prefix from a
+    // tampered one.
+    QString anchorHash;
+    {
+        QSqlQuery anchor(m_database);
+        anchor.prepare(QStringLiteral("SELECT value FROM clinical_state WHERE key = :key"));
+        anchor.bindValue(QStringLiteral(":key"), QLatin1String(kPrunedHashKey));
+        if (anchor.exec() && anchor.next())
+            anchorHash = anchor.value(0).toString();
+    }
+    out << "# device," << sv::common::identity::applicationName() << '\n';
+    out << "# software," << QLatin1String(APP_VERSION) << '\n';
+    out << "# exported," << QDateTime::currentDateTime().toString(Qt::ISODate) << '\n';
+    out << "# chain_starts_after," << (anchorHash.isEmpty() ? QStringLiteral("(beginning)") : anchorHash) << '\n';
+    out << "timestamp,type,source,description,status,hash\n";
+
     QSqlQuery query(m_database);
     if (query.exec(QStringLiteral(
-            "SELECT created_at,'Event',source,description,status FROM events "
-            "UNION ALL SELECT created_at,'Alarm',source,description,status FROM alarms "
-            "ORDER BY created_at DESC LIMIT 1000"))) {
+            "SELECT created_at,'Event',source,description,status,hash FROM events "
+            "UNION ALL SELECT created_at,'Alarm',source,description,status,'' FROM alarms "
+            "ORDER BY created_at ASC"))) {
         while (query.next()) {
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < 6; ++i) {
                 if (i) out << ',';
                 QString value = query.value(i).toString();
                 value.replace('"', QStringLiteral("\"\""));
@@ -1002,7 +1194,15 @@ QString DatabaseManager::exportAuditSummary() const
             out << '\n';
         }
     }
+
+    file.close();
     return path;
+}
+
+QString DatabaseManager::exportAuditSummary() const
+{
+    // One export, one format. This name is what the pre-rework screens call.
+    return exportAuditTrail();
 }
 
 #include "DatabaseManager.moc"

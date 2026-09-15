@@ -437,6 +437,7 @@ ApplicationWindow {
             presenter: monitoringPresenter
             eventData: eventModel
             logData: typeof logBuffer !== "undefined" ? logBuffer : null
+            database: databaseManager
         }
     }
 

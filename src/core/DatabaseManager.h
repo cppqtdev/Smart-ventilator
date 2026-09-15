@@ -133,10 +133,49 @@ public:
     /** @return CSV-style audit export combining events and alarms. */
     Q_INVOKABLE QString exportAuditSummary() const;
 
+    // -- Retention and export ----------------------------------------------
+    /**
+     * @brief Writes the audit trail to a CSV file, hash column included.
+     *
+     * The old export dropped the hash, so nothing read off the device could
+     * be checked against the chain it came from. This one carries it, and a
+     * preamble naming the device, the software version and the row range, so
+     * the file can be verified away from the ventilator that wrote it.
+     *
+     * @param directory Where to write. Empty means beside the database.
+     * @return The path written, or an empty string on failure.
+     */
+    Q_INVOKABLE QString exportAuditTrail(const QString &directory = QString()) const;
+
+    /** @return How many rows the events table holds. */
+    Q_INVOKABLE int eventCount() const;
+    /** @return The row cap at which the oldest events are pruned. */
+    Q_INVOKABLE int historyCapacity() const;
+    /** @return True once the log is close enough to the cap to want exporting. */
+    Q_INVOKABLE bool historyNearCapacity() const;
+
+    /**
+     * @brief Drops events and alarms past the retention policy.
+     *
+     * An audit trail that grows without bound fills an embedded disk, which
+     * is a failure during use. Rows go by age first and then by count. The
+     * prune is itself written to the log, so the deletion is auditable, and
+     * the hash of the last removed row is kept as the chain anchor so what
+     * remains still verifies.
+     *
+     * @return How many event rows were removed.
+     */
+    Q_INVOKABLE int pruneHistory();
+
 signals:
     /** @brief Emitted when a database write operation fails. */
     void errorOccurred(const QString &message);
     void storageStateChanged();
+
+    /** @brief Emitted after a prune, with the number of event rows removed. */
+    void historyPruned(int removed);
+    /** @brief Emitted when the log is close to its cap and wants exporting. */
+    void historyNearCapacityChanged(bool near);
 
     /** @brief Emitted for every accepted event, so list models can follow. */
     void eventLogged(const QString &source,

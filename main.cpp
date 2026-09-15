@@ -63,6 +63,23 @@ int main(int argc, char *argv[])
     QObject::connect(&appSettings, &AppSettings::audioVolumeChanged,
                      &alarmAudio, [&]() { alarmAudio.setVolume(appSettings.audioVolume()); });
 
+    // A prune removes rows nobody kept. The operator is told while there is
+    // still room to export, not after the oldest entries have gone.
+    const auto warnIfLogFilling = [&](bool near) {
+        if (near) {
+            alarmController.raiseAlarm(QStringLiteral("Advisory"),
+                                       QStringLiteral("Storage"),
+                                       QStringLiteral("Event log near capacity"),
+                                       QStringLiteral("Export the audit trail"));
+        } else {
+            alarmController.clearCondition(
+                QStringLiteral("legacy.storage.event log near capacity"));
+        }
+    };
+    warnIfLogFilling(databaseManager.historyNearCapacity());
+    QObject::connect(&databaseManager, &DatabaseManager::historyNearCapacityChanged,
+                     &alarmController, warnIfLogFilling);
+
     EventController eventController(&databaseManager);
     UserController userController(&databaseManager);
     VentilatorController ventilatorController(&databaseManager, &alarmController);

@@ -15,10 +15,12 @@ Item {
     property var presenter
     property var eventData
     property var logData
+    property var database
 
     EventsPane {
         anchors.fill: parent
         eventData: screen.eventData
         logData: screen.logData
+        database: screen.database
     }
 }

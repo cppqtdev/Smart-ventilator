@@ -94,6 +94,23 @@ void Application::createLegacyControllers()
 
     m_appSettings = std::make_unique<AppSettings>();
     m_alarmController = std::make_unique<AlarmController>(m_legacyDatabase.get());
+    // A prune removes rows nobody kept. The operator is told while there is
+    // still room to export, not after the oldest entries have gone.
+    const auto warnIfLogFilling = [this](bool near) {
+        if (near) {
+            m_alarmController->raiseAlarm(QStringLiteral("Advisory"),
+                                          QStringLiteral("Storage"),
+                                          QStringLiteral("Event log near capacity"),
+                                          QStringLiteral("Export the audit trail"));
+        } else {
+            m_alarmController->clearCondition(
+                QStringLiteral("legacy.storage.event log near capacity"));
+        }
+    };
+    warnIfLogFilling(m_legacyDatabase->historyNearCapacity());
+    connect(m_legacyDatabase.get(), &DatabaseManager::historyNearCapacityChanged,
+            m_alarmController.get(), warnIfLogFilling);
+
     m_alarmAudio = std::make_unique<AlarmAudio>(m_alarmController.get());
     m_alarmAudio->setVolume(m_appSettings->audioVolume());
     connect(m_appSettings.get(), &AppSettings::audioVolumeChanged,
