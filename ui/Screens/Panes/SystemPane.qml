@@ -15,6 +15,7 @@ Item {
     property var ventilatorData
     property var calibrationService
     property var clockData
+    property var alarmAudio
 
     property int pageIndex: 0
     property int infoPage: 0
@@ -222,6 +223,37 @@ Item {
                             color: Colors.textPrimary
                             font.family: Typography.monoFamily
                             font.pixelSize: Typography.readoutLabel
+                        }
+
+                        // IEC 60601-1-8 expects the auditory alarm signal to
+                        // be verifiable. This is how the operator hears that
+                        // the speaker works at the loudness they just set.
+                        AppButton {
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.preferredWidth: Math.max(Metrics.px(110), implicitWidth)
+                            Layout.preferredHeight: Metrics.px(32)
+                            visible: pane.settingsSelection !== "brightness"
+                            text: qsTr("Test sound")
+                            buttonVariant: AppButton.Primary
+                            enabled: pane.alarmAudio !== null
+                            onClicked: {
+                                if (pane.alarmAudio)
+                                    pane.alarmAudio.playTestTone()
+                            }
+                        }
+
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.maximumWidth: Metrics.px(220)
+                            visible: pane.settingsSelection !== "brightness"
+                                     && pane.alarmAudio !== null
+                                     && !pane.alarmAudio.available
+                            text: qsTr("No sound output. The ventilator cannot sound an alarm.")
+                            color: Colors.critical
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignHCenter
+                            font.family: Typography.monoFamily
+                            font.pixelSize: Typography.micro
                         }
 
                         RowLayout {

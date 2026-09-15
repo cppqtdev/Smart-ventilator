@@ -1,6 +1,10 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
+        <file>ui/Assets/alarm_high.wav</file>
+        <file>ui/Assets/alarm_low.wav</file>
+        <file>ui/Assets/alarm_medium.wav</file>
+        <file>ui/Assets/alarm_test.wav</file>
         <file>ui/Assets/alarm_tone.wav</file>
         <file>ui/Assets/charge.svg</file>
         <file>ui/Assets/lungs.png</file>

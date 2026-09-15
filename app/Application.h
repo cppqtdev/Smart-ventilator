@@ -9,6 +9,7 @@
 #include <memory>
 
 class AppSettings;
+class AlarmAudio;
 class AlarmController;
 class ClockController;
 class PatientController;
@@ -67,6 +68,7 @@ private:
 
     std::unique_ptr<AppSettings> m_appSettings;
     std::unique_ptr<AlarmController> m_alarmController;
+    std::unique_ptr<AlarmAudio> m_alarmAudio;
     std::unique_ptr<ClockController> m_clockController;
     std::unique_ptr<PatientController> m_patientController;
     std::unique_ptr<EventController> m_eventController;

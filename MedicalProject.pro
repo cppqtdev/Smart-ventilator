@@ -18,6 +18,7 @@ SOURCES += \
         src/common/src/LogBuffer.cpp \
         src/core/AppSettings.cpp \
         src/core/DatabaseManager.cpp \
+        src/controllers/AlarmAudio.cpp \
         src/controllers/AlarmController.cpp \
         src/controllers/ClockController.cpp \
         src/controllers/EventController.cpp \
@@ -45,6 +46,7 @@ HEADERS += \
         src/common/include/sv/common/LogBuffer.h \
         src/core/AppSettings.h \
         src/core/DatabaseManager.h \
+        src/controllers/AlarmAudio.h \
         src/controllers/AlarmController.h \
         src/controllers/ClockController.h \
         src/controllers/EventController.h \

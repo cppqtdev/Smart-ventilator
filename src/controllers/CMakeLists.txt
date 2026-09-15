@@ -3,6 +3,7 @@
 # Smart Ventilator ICU Application
 
 set(SV_LEGACY_CONTROLLER_SOURCES
+    AlarmAudio.cpp
     AlarmController.cpp
     ClockController.cpp
     EventController.cpp
@@ -13,6 +14,7 @@ set(SV_LEGACY_CONTROLLER_SOURCES
 )
 
 set(SV_LEGACY_CONTROLLER_HEADERS
+    AlarmAudio.h
     AlarmController.h
     ClockController.h
     EventController.h
@@ -36,6 +38,7 @@ target_link_libraries(sv_legacy_controllers PUBLIC
     sv_domain
     sv_services
     Qt6::Core
+    Qt6::Multimedia
     Qt6::Sql
 )
 

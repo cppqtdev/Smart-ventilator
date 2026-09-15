@@ -18,6 +18,7 @@
 
 #include "src/core/AppSettings.h"
 #include "src/core/DatabaseManager.h"
+#include "src/controllers/AlarmAudio.h"
 #include "src/controllers/AlarmController.h"
 #include "src/controllers/ClockController.h"
 #include "src/controllers/PatientController.h"
@@ -93,6 +94,12 @@ void Application::createLegacyControllers()
 
     m_appSettings = std::make_unique<AppSettings>();
     m_alarmController = std::make_unique<AlarmController>(m_legacyDatabase.get());
+    m_alarmAudio = std::make_unique<AlarmAudio>(m_alarmController.get());
+    m_alarmAudio->setVolume(m_appSettings->audioVolume());
+    connect(m_appSettings.get(), &AppSettings::audioVolumeChanged,
+            m_alarmAudio.get(), [this]() {
+                m_alarmAudio->setVolume(m_appSettings->audioVolume());
+            });
     m_clockController = std::make_unique<ClockController>();
     m_patientController = std::make_unique<PatientController>(m_legacyDatabase.get());
     m_eventController = std::make_unique<EventController>(m_legacyDatabase.get());
@@ -192,6 +199,7 @@ void Application::registerContextProperties()
     ctx->setContextProperty(QStringLiteral("databaseManager"), m_legacyDatabase.get());
     ctx->setContextProperty(QStringLiteral("patientController"), m_patientController.get());
     ctx->setContextProperty(QStringLiteral("alarmController"), m_alarmController.get());
+    ctx->setContextProperty(QStringLiteral("alarmAudio"), m_alarmAudio.get());
     ctx->setContextProperty(QStringLiteral("eventController"), m_eventController.get());
     ctx->setContextProperty(QStringLiteral("userController"), m_userController.get());
     ctx->setContextProperty(QStringLiteral("ventilatorController"), m_ventilatorController.get());

@@ -17,6 +17,7 @@ Item {
     property var ventilatorData
     property var calibrationService
     property var clockData
+    property var alarmAudio
 
     /** Which sub-tab to open on. 1 is Tests and Calibration. */
     property int initialPage: 0
@@ -29,6 +30,7 @@ Item {
         ventilatorData: screen.ventilatorData
         calibrationService: screen.calibrationService
         clockData: screen.clockData
+        alarmAudio: screen.alarmAudio
 
         // Set once rather than bound, so the operator's own tab choice sticks
         // while they are on this screen.

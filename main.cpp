@@ -7,6 +7,7 @@
 
 #include "src/core/AppSettings.h"
 #include "src/core/DatabaseManager.h"
+#include "src/controllers/AlarmAudio.h"
 #include "src/controllers/AlarmController.h"
 #include "src/controllers/ClockController.h"
 #include "src/controllers/PatientController.h"
@@ -57,6 +58,11 @@ int main(int argc, char *argv[])
         alarmController.setHeadline(QStringLiteral("Storage Failure"));
         alarmController.setDetail(QStringLiteral("Audit trail unavailable"));
     }
+    AlarmAudio alarmAudio(&alarmController);
+    alarmAudio.setVolume(appSettings.audioVolume());
+    QObject::connect(&appSettings, &AppSettings::audioVolumeChanged,
+                     &alarmAudio, [&]() { alarmAudio.setVolume(appSettings.audioVolume()); });
+
     EventController eventController(&databaseManager);
     UserController userController(&databaseManager);
     VentilatorController ventilatorController(&databaseManager, &alarmController);
@@ -125,6 +131,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("databaseManager"), &databaseManager);
     engine.rootContext()->setContextProperty(QStringLiteral("patientController"), &patientController);
     engine.rootContext()->setContextProperty(QStringLiteral("alarmController"), &alarmController);
+    engine.rootContext()->setContextProperty(QStringLiteral("alarmAudio"), &alarmAudio);
     engine.rootContext()->setContextProperty(QStringLiteral("eventController"), &eventController);
     engine.rootContext()->setContextProperty(QStringLiteral("userController"), &userController);
     engine.rootContext()->setContextProperty(QStringLiteral("ventilatorController"), &ventilatorController);

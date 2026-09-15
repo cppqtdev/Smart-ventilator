@@ -29,6 +29,7 @@ ApplicationWindow {
     property var ventilatorModel: ventilatorController
     property var alarmModel: alarmController
     property var calibrationModel: calibrationService
+    property var alarmAudioModel: alarmAudio
 
     // Which System sub-tab to open on. Standby points it at the pre-use check.
     property int systemPage: 0
@@ -421,6 +422,7 @@ ApplicationWindow {
             ventilatorData: ventilatorModel
             calibrationService: root.calibrationModel
             clockData: clockController
+            alarmAudio: root.alarmAudioModel
             initialPage: root.systemPage
 
             // The pane captures initialPage in its own onCompleted, which runs
