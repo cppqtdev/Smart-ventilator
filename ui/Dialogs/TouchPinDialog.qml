@@ -23,9 +23,13 @@ Popup {
 
     modal: true
     closePolicy: Popup.NoAutoClose
-    width: Math.min(parent ? parent.width * 0.38 : 560, 560)
-    height: pinPanel.implicitHeight
+    padding: 0
+    width: Math.min(parent ? parent.width * 0.38 : Metrics.px(420), Metrics.px(420))
+    height: shell.implicitHeight
     anchors.centerIn: parent
+
+    // The screen behind a modal is not available, and has to look it.
+    Overlay.modal: Rectangle { color: Colors.scrim }
 
     function appendDigit(digit) {
         if (root.enteredPin.length < root.pinLength)
@@ -47,42 +51,20 @@ Popup {
 
     onOpened: root.clearPin()
 
-    background: Rectangle {
-        radius: Radius.medium
-        color: Colors.surface
-        border.color: Colors.line
-        border.width: 1
-    }
+    background: null
 
-    contentItem: Panel {
-        id: pinPanel
-        implicitHeight: pinContent.implicitHeight + 48
+    contentItem: DialogShell {
+        id: shell
+
+        width: root.width
+        titleText: root.titleText
+        messageText: root.messageText
+        hasBody: true
 
         ColumnLayout {
             id: pinContent
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 24
-            spacing: 18
-
-            Text {
-                Layout.fillWidth: true
-                text: root.titleText
-                color: Colors.textPrimary
-                font.pixelSize: Typography.subtitleLarge
-                font.weight: Font.DemiBold
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: root.messageText
-                color: Colors.textSecondary
-                font.pixelSize: Typography.body
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-            }
+            width: parent.width
+            spacing: Spacing.lg
 
             // Drawn rather than typeset: a glyph-based dot row inherits the
             // font's advance width and drifts out of alignment across the
@@ -116,24 +98,27 @@ Popup {
             GridLayout {
                 Layout.alignment: Qt.AlignHCenter
                 columns: 3
-                rowSpacing: 10
-                columnSpacing: 10
+                rowSpacing: Spacing.sm
+                columnSpacing: Spacing.sm
 
                 Repeater {
                     model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"]
 
-                    PrimaryButton {
+                    AppButton {
                         required property string modelData
 
-                        Layout.preferredWidth: 104
-                        Layout.preferredHeight: 64
+                        Layout.preferredWidth: Metrics.px(96)
+                        Layout.preferredHeight: Metrics.touchPrimary
                         text: modelData
-                        buttonColor: {
+                        fontSize: Typography.bodyLarge
+                        enabled: modelData !== "OK"
+                                 || root.enteredPin.length === root.pinLength
+                        buttonVariant: {
                             if (modelData === "OK")
-                                return root.enteredPin.length === root.pinLength ? Colors.success : Colors.disabled
+                                return AppButton.Success
                             if (modelData === "C")
-                                return Colors.critical
-                            return Colors.surfaceRaised
+                                return AppButton.Danger
+                            return AppButton.Secondary
                         }
                         onClicked: {
                             if (modelData === "OK")
@@ -147,17 +132,20 @@ Popup {
                 }
             }
 
-            PrimaryButton {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 220
-                Layout.preferredHeight: 52
-                text: "Cancel"
-                buttonColor: Colors.disabled
+        }
+
+        actions: [
+            AppButton {
+                Layout.preferredWidth: Math.max(Metrics.px(132), implicitWidth)
+                Layout.preferredHeight: Metrics.touchPrimary
+                text: qsTr("Cancel")
+                buttonVariant: AppButton.Ghost
                 onClicked: {
                     root.clearPin()
                     root.close()
                 }
-            }
-        }
+            },
+            Item { Layout.fillWidth: true }
+        ]
     }
 }

@@ -35,75 +35,43 @@ Popup {
 
     modal: true
     closePolicy: Popup.NoAutoClose
-    width: Math.min(parent ? parent.width * 0.38 : 560, 560)
-    height: confirmPanel.implicitHeight
+    padding: 0
+    width: Math.min(parent ? parent.width * 0.38 : Metrics.px(420), Metrics.px(420))
+    height: shell.implicitHeight
     anchors.centerIn: parent
 
-    background: Rectangle {
-        radius: Radius.medium
-        color: Colors.surface
-        border.color: Colors.line
-        border.width: Metrics.borderWidth
-    }
+    // The screen behind a modal is not available, and has to look it.
+    Overlay.modal: Rectangle { color: Colors.scrim }
 
-    contentItem: Panel {
-        id: confirmPanel
+    background: null
 
-        implicitHeight: confirmContent.implicitHeight + Metrics.px(48)
+    contentItem: DialogShell {
+        id: shell
 
-        ColumnLayout {
-            id: confirmContent
+        width: root.width
+        titleText: root.titleText
+        messageText: root.messageText
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Metrics.px(24)
-            spacing: Spacing.lg
-
-            Text {
-                Layout.fillWidth: true
-                text: root.titleText
-                color: Colors.textPrimary
-                font.family: Typography.family
-                font.pixelSize: Typography.subtitleLarge
-                font.weight: Typography.semibold
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: root.messageText
-                color: Colors.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.body
-                wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: Spacing.sm
-                spacing: Spacing.lg
-
-                PrimaryButton {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Metrics.touchPrimary
-                    text: root.cancelText
-                    variant: "ghost"
-                    onClicked: root.close()
+        actions: [
+            AppButton {
+                Layout.preferredWidth: Math.max(Metrics.px(132), implicitWidth)
+                Layout.preferredHeight: Metrics.touchPrimary
+                text: root.confirmText
+                buttonVariant: root.confirmVariant === "danger"
+                               ? AppButton.Danger : AppButton.Primary
+                onClicked: {
+                    root.close()
+                    root.confirmed()
                 }
-
-                PrimaryButton {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Metrics.touchPrimary
-                    text: root.confirmText
-                    variant: root.confirmVariant
-                    onClicked: {
-                        root.close()
-                        root.confirmed()
-                    }
-                }
-            }
-        }
+            },
+            AppButton {
+                Layout.preferredWidth: Math.max(Metrics.px(132), implicitWidth)
+                Layout.preferredHeight: Metrics.touchPrimary
+                text: root.cancelText
+                buttonVariant: AppButton.Ghost
+                onClicked: root.close()
+            },
+            Item { Layout.fillWidth: true }
+        ]
     }
 }
