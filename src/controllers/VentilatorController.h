@@ -99,6 +99,10 @@ class VentilatorController : public QObject
 
     /// True while a hold manoeuvre is running. A property, not just an
     /// invokable, so the manoeuvre buttons actually disable during one.
+    Q_PROPERTY(double measuredFio2 READ measuredFio2 NOTIFY measurementsChanged)
+    Q_PROPERTY(double leakPercent READ leakPercent NOTIFY measurementsChanged)
+    Q_PROPERTY(int devicePowerPercent READ devicePowerPercent NOTIFY measurementsChanged)
+    Q_PROPERTY(quint32 deviceFaults READ deviceFaults NOTIFY measurementsChanged)
     Q_PROPERTY(bool holdInProgress READ holdInProgress NOTIFY measurementsChanged)
 
     Q_PROPERTY(bool oxygenBoostActive READ oxygenBoostActive NOTIFY manoeuvreChanged)
@@ -307,6 +311,18 @@ public:
     /** @brief Validated operator command for enabling/disabling apnea backup. */
     Q_INVOKABLE bool requestApneaBackupChange(bool enabled);
 
+    /** @return Oxygen the device reports delivering, not the setpoint. */
+    double measuredFio2() const;
+
+    /** @return Circuit leak as a percentage of delivered volume. */
+    double leakPercent() const;
+
+    /** @return Battery the device reports, or -1 when it reports none. */
+    int devicePowerPercent() const;
+
+    /** @return The device fault bit field from frame 0x124. */
+    quint32 deviceFaults() const;
+
     bool oxygenBoostActive() const;
     int oxygenBoostRemaining() const;
     bool nebuliserActive() const;
@@ -467,6 +483,7 @@ private:
     void setDegradedMode(bool degraded, const QString &state);
     void logSettingChange(const QString &parameter, const QVariant &oldValue, const QVariant &newValue);
     void saveSession();
+    void applyDeviceFaults(quint32 bits);
 
     DatabaseManager *m_database = nullptr;
     AlarmController *m_alarmController = nullptr;
@@ -505,6 +522,10 @@ private:
     double m_ftotal = 0;
     double m_rcexp = 0;
     double m_expMinVol = 0;
+    double m_measuredFio2 = 0;
+    double m_leakPercent = 0;
+    int m_devicePowerPercent = -1;
+    quint32 m_deviceFaults = 0;
     double m_workOfBreathing = 0;
     double m_stressIndex = 1.0;
     double m_deadSpaceFraction = 0.3;

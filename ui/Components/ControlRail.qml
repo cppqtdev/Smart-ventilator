@@ -16,6 +16,9 @@ Rectangle {
     property bool frozen: false
     property bool ventilating: false
 
+    /** Empty when the device may be started. Otherwise says what is missing. */
+    property string blockedReason: ""
+
     signal freezeToggled(bool frozen)
     signal ventilationToggled(bool start)
     signal settingRequested(string key, real value)
@@ -40,7 +43,22 @@ Rectangle {
             buttonVariant: rail.ventilating ? AppButton.Danger : AppButton.Success
             fontFamily: Typography.family
             fontSize: Typography.label
+            enabled: rail.ventilating || rail.blockedReason.length === 0
             onClicked: rail.ventilationToggled(!rail.ventilating)
+        }
+
+        // A disabled control that does not say why is a control the operator
+        // presses again. The reason sits under it rather than arriving as a
+        // message after the press.
+        Text {
+            Layout.fillWidth: true
+            Layout.topMargin: -Spacing.sm
+            text: rail.blockedReason
+            color: Colors.warning
+            font.family: Typography.family
+            font.pixelSize: Typography.caption
+            wrapMode: Text.WordWrap
+            visible: !rail.ventilating && rail.blockedReason.length > 0
         }
 
         AppButton {

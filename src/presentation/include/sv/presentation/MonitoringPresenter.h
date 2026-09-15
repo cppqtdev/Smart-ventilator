@@ -35,6 +35,7 @@ class MonitoringPresenter : public QObject
     Q_PROPERTY(QVariantMap patient READ patient NOTIFY patientChanged)
     Q_PROPERTY(QString mode READ mode NOTIFY settingsChanged)
     Q_PROPERTY(bool ventilating READ ventilating NOTIFY settingsChanged)
+    Q_PROPERTY(QString readinessReason READ readinessReason NOTIFY settingsChanged)
     Q_PROPERTY(bool frozen READ frozen NOTIFY settingsChanged)
     Q_PROPERTY(bool nonInvasive READ nonInvasive NOTIFY settingsChanged)
     Q_PROPERTY(bool spontaneous READ spontaneous NOTIFY measurementsChanged)
@@ -54,6 +55,7 @@ public:
     QVariantMap patient() const;
     QString mode() const;
     bool ventilating() const;
+    QString readinessReason() const;
     bool frozen() const;
     bool nonInvasive() const;
     bool spontaneous() const;

@@ -129,6 +129,7 @@ Item {
                 dials: shell.presenter ? shell.presenter.dials : []
                 frozen: shell.frozen
                 ventilating: shell.presenter ? shell.presenter.ventilating : false
+                blockedReason: shell.presenter ? shell.presenter.readinessReason : ""
 
                 onVentilationToggled: function (start) {
                     if (!shell.presenter)

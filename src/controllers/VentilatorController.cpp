@@ -1129,10 +1129,12 @@ void VentilatorController::applyTelemetry(const QVariantMap &values)
         flag = true;
     };
 
+    // The frame carries this as "peep"; it is the total PEEP the device
+    // measured, which is not the PEEP that was set.
+    take("peep", m_totalPeep, measurements);
     take("peakPressure", m_ppeak, measurements);
     take("plateauPressure", m_pplat, measurements);
     take("meanPressure", m_pmean, measurements);
-    take("totalPeep", m_totalPeep, measurements);
     take("tidalVolumeExpired", m_vte, measurements);
     take("minuteVolume", m_expMinVol, measurements);
     take("respiratoryRate", m_ftotal, measurements);
@@ -1140,6 +1142,8 @@ void VentilatorController::applyTelemetry(const QVariantMap &values)
     take("etco2", m_etco2, measurements);
     take("compliance", m_compliance, measurements);
     take("resistance", m_resistance, measurements);
+    take("fio2", m_measuredFio2, measurements);
+    take("leakPercent", m_leakPercent, measurements);
 
     const auto appendIfPresent = [&](const char *key, QVariantList &buffer) {
         const auto it = values.constFind(QString::fromLatin1(key));
@@ -1153,6 +1157,16 @@ void VentilatorController::applyTelemetry(const QVariantMap &values)
     appendIfPresent("flow", m_flowWaveform);
     appendIfPresent("volume", m_volumeWaveform);
     appendIfPresent("co2", m_co2Waveform);
+
+    const auto battery = values.constFind(QString::fromLatin1("batteryPercent"));
+    if (battery != values.constEnd()) {
+        m_devicePowerPercent = battery.value().toInt();
+        measurements = true;
+    }
+
+    const auto faults = values.constFind(QString::fromLatin1("deviceFault"));
+    if (faults != values.constEnd())
+        applyDeviceFaults(quint32(faults.value().toULongLong()));
 
     const auto state = values.constFind(QString::fromLatin1("deviceState"));
     if (state != values.constEnd())
@@ -1209,6 +1223,64 @@ void VentilatorController::restoreSession()
     emit patientContextChanged();
     emit readinessChanged();
     emit settingsChanged();
+}
+
+double VentilatorController::measuredFio2() const { return m_measuredFio2; }
+double VentilatorController::leakPercent() const { return m_leakPercent; }
+int VentilatorController::devicePowerPercent() const { return m_devicePowerPercent; }
+quint32 VentilatorController::deviceFaults() const { return m_deviceFaults; }
+
+void VentilatorController::applyDeviceFaults(quint32 bits)
+{
+    if (m_deviceFaults == bits)
+        return;
+
+    // Each bit is a technical alarm condition the device raised. They are
+    // mapped one for one rather than collapsed into a single "device fault",
+    // because the operator has to know whether to check the circuit or the
+    // wall supply.
+    struct FaultEntry {
+        quint32 bit;
+        const char *conditionId;
+        const char *priority;
+        const char *source;
+        const char *headline;
+    };
+
+    static const FaultEntry table[] = {
+        {1u << 0, "device.occlusion",  "Critical", "Circuit", "Circuit occluded"},
+        {1u << 1, "device.disconnect", "Critical", "Circuit", "Patient disconnected"},
+        {1u << 2, "device.o2supply",   "Critical", "Supply",  "Oxygen supply failed"},
+        {1u << 3, "device.airsupply",  "Critical", "Supply",  "Air supply failed"},
+        {1u << 4, "device.flowsensor", "Warning",  "Sensor",  "Flow sensor fault"},
+        {1u << 5, "device.o2cell",     "Warning",  "Sensor",  "Oxygen cell fault"},
+        {1u << 6, "device.battery",    "Warning",  "Power",   "Battery fault"},
+        {1u << 7, "device.fan",        "Advisory", "Cooling", "Cooling fan fault"}
+    };
+
+    const quint32 previous = m_deviceFaults;
+    m_deviceFaults = bits;
+
+    if (m_alarmController == nullptr)
+        return;
+
+    for (const FaultEntry &entry : table) {
+        const bool now = (bits & entry.bit) != 0;
+        const bool before = (previous & entry.bit) != 0;
+        if (now == before)
+            continue;
+
+        if (now) {
+            m_alarmController->raiseCondition(
+                QString::fromLatin1(entry.conditionId),
+                QString::fromLatin1(entry.priority),
+                QString::fromLatin1(entry.source),
+                QString::fromLatin1(entry.headline),
+                tr("Reported by the device"), true);
+        } else {
+            m_alarmController->clearCondition(QString::fromLatin1(entry.conditionId));
+        }
+    }
 }
 
 void VentilatorController::adoptDeviceState(bool deviceVentilating)

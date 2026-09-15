@@ -194,6 +194,7 @@
         <file>ui/Screens/Panes/SystemPane.qml</file>
         <file>ui/Screens/Panes/ToolsPane.qml</file>
         <file>ui/Screens/Panes/UtilitiesPane.qml</file>
+        <file>ui/Theme/Branding.qml</file>
         <file>ui/Theme/Colors.qml</file>
         <file>ui/Theme/Icons.qml</file>
         <file>ui/Theme/Metrics.qml</file>

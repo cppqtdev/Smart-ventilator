@@ -58,6 +58,8 @@ void MonitoringPresenter::attach(VentilatorController *ventilator,
                 this, &MonitoringPresenter::settingsChanged);
         connect(m_ventilator, &VentilatorController::runningChanged,
                 this, &MonitoringPresenter::settingsChanged);
+        connect(m_ventilator, &VentilatorController::readinessChanged,
+                this, &MonitoringPresenter::settingsChanged);
     }
     if (m_patient != nullptr) {
         connect(m_patient, &PatientController::patientChanged,
@@ -205,6 +207,11 @@ QString MonitoringPresenter::mode() const
 bool MonitoringPresenter::ventilating() const
 {
     return m_ventilator != nullptr && m_ventilator->running();
+}
+
+QString MonitoringPresenter::readinessReason() const
+{
+    return m_ventilator != nullptr ? m_ventilator->readinessReason() : QString();
 }
 
 bool MonitoringPresenter::frozen() const

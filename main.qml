@@ -206,6 +206,17 @@ ApplicationWindow {
         visible: root.splashActive
         softwareVersion: appSettings.softwareVersion
         operatingHours: appSettings.operatingHours
+
+        // Live conditions, not a script. Each one is something that is either
+        // true or not by the time the screen hands over.
+        storageReady: databaseManager.ready && !databaseManager.readOnly
+        operatorsReady: userController.lockTimeoutSeconds > 0
+        alarmsReady: root.alarmModel !== undefined && root.alarmModel !== null
+        deviceReady: typeof telemetryBridge !== "undefined" && telemetryBridge !== null
+                     ? telemetryBridge.linkUp
+                     : !root.ventilatorModel.degradedMode
+        sessionReady: root.ventilatorModel.patientAccepted
+
         onFinished: root.splashActive = false
     }
 
