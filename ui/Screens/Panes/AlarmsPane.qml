@@ -168,8 +168,9 @@ Item {
                 spacing: Spacing.md
 
                 // AlarmController has carried a priority filter since it was
-                // written and nothing ever set it, so a log of every technical
-                // advisory buried the critical rows a reviewer is looking for.
+                // written and nothing ever set it, so the log showed every
+                // technical advisory alongside the critical rows a reviewer
+                // is looking for.
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Spacing.md
@@ -205,82 +206,82 @@ Item {
                 ListView {
                     id: alarmLog
                     Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-                spacing: Spacing.xs
-                model: pane.alarmData
+                    Layout.fillHeight: true
+                    clip: true
+                    spacing: Spacing.xs
+                    model: pane.alarmData
 
-                delegate: Rectangle {
-                    required property string time
-                    required property string priority
-                    required property string source
-                    required property string description
-                    required property string status
+                    delegate: Rectangle {
+                        required property string time
+                        required property string priority
+                        required property string source
+                        required property string description
+                        required property string status
 
-                    width: alarmLog.width
-                    height: Metrics.px(30)
-                    radius: Radius.xs
-                    color: Colors.surfaceRaised
+                        width: alarmLog.width
+                        height: Metrics.px(30)
+                        radius: Radius.xs
+                        color: Colors.surfaceRaised
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Spacing.md
-                        anchors.rightMargin: Spacing.md
-                        spacing: Spacing.md
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Spacing.md
+                            anchors.rightMargin: Spacing.md
+                            spacing: Spacing.md
 
-                        Text {
-                            Layout.preferredWidth: Metrics.px(84)
-                            text: time
-                            color: Colors.textSecondary
-                            font.family: Typography.monoFamily
-                            font.pixelSize: Typography.caption
-                            elide: Text.ElideRight
-                        }
+                            Text {
+                                Layout.preferredWidth: Metrics.px(84)
+                                text: time
+                                color: Colors.textSecondary
+                                font.family: Typography.monoFamily
+                                font.pixelSize: Typography.caption
+                                elide: Text.ElideRight
+                            }
 
-                        Text {
-                            Layout.preferredWidth: Metrics.px(72)
-                            text: priority
-                            color: pane.priorityColour(priority)
-                            font.family: Typography.monoFamily
-                            font.pixelSize: Typography.caption
-                            elide: Text.ElideRight
-                        }
+                            Text {
+                                Layout.preferredWidth: Metrics.px(72)
+                                text: priority
+                                color: pane.priorityColour(priority)
+                                font.family: Typography.monoFamily
+                                font.pixelSize: Typography.caption
+                                elide: Text.ElideRight
+                            }
 
-                        Text {
-                            Layout.preferredWidth: Metrics.px(88)
-                            text: source
-                            color: Colors.textSecondary
-                            font.family: Typography.monoFamily
-                            font.pixelSize: Typography.caption
-                            elide: Text.ElideRight
-                        }
+                            Text {
+                                Layout.preferredWidth: Metrics.px(88)
+                                text: source
+                                color: Colors.textSecondary
+                                font.family: Typography.monoFamily
+                                font.pixelSize: Typography.caption
+                                elide: Text.ElideRight
+                            }
 
-                        Text {
-                            Layout.fillWidth: true
-                            text: description
-                            color: Colors.textPrimary
-                            font.family: Typography.monoFamily
-                            font.pixelSize: Typography.caption
-                            elide: Text.ElideRight
-                        }
+                            Text {
+                                Layout.fillWidth: true
+                                text: description
+                                color: Colors.textPrimary
+                                font.family: Typography.monoFamily
+                                font.pixelSize: Typography.caption
+                                elide: Text.ElideRight
+                            }
 
-                        Text {
-                            text: status
-                            color: Colors.textSecondary
-                            font.family: Typography.monoFamily
-                            font.pixelSize: Typography.caption
+                            Text {
+                                text: status
+                                color: Colors.textSecondary
+                                font.family: Typography.monoFamily
+                                font.pixelSize: Typography.caption
+                            }
                         }
                     }
-                }
-            }
 
-            Text {
-                anchors.centerIn: parent
-                text: qsTr("No alarm has been logged in this session.")
-                color: Colors.textSecondary
-                font.family: Typography.monoFamily
-                font.pixelSize: Typography.readoutLabel
-                visible: alarmLog.count === 0
+                    Text {
+                        anchors.centerIn: parent
+                        text: qsTr("No alarm has been logged in this session.")
+                        color: Colors.textSecondary
+                        font.family: Typography.monoFamily
+                        font.pixelSize: Typography.readoutLabel
+                        visible: alarmLog.count === 0
+                    }
                 }
             }
         }
