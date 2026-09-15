@@ -37,6 +37,7 @@ class MonitoringPresenter : public QObject
     Q_PROPERTY(bool ventilating READ ventilating NOTIFY settingsChanged)
     Q_PROPERTY(int measuredRate READ measuredRate NOTIFY measurementsChanged)
     Q_PROPERTY(QVariantMap asvTarget READ asvTarget NOTIFY measurementsChanged)
+    Q_PROPERTY(QVariantMap waveformScales READ waveformScales NOTIFY settingsChanged)
     Q_PROPERTY(QString readinessReason READ readinessReason NOTIFY settingsChanged)
     Q_PROPERTY(bool frozen READ frozen NOTIFY settingsChanged)
     Q_PROPERTY(bool nonInvasive READ nonInvasive NOTIFY settingsChanged)
@@ -55,6 +56,15 @@ public:
     QVariantList dials() const;
     QVariantList banner() const;
     QVariantMap patient() const;
+    /**
+     * @brief Full-scale value for each waveform channel, for this patient.
+     *
+     * The channels carried fixed scales, so an eight kilo patient's flow
+     * trace was a flat line across a plus and minus 75 litre lane while an
+     * adult's volume trace pegged against a 40 millilitre ceiling. Keys are
+     * pressure, flow, volume and co2.
+     */
+    QVariantMap waveformScales() const;
     QString mode() const;
     bool ventilating() const;
 

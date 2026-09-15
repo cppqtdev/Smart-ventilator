@@ -34,12 +34,19 @@ ColumnLayout {
         presenter: content.presenter
         channels: [
             {
-                key: "paw", label: qsTr("Paw"), color: Colors.wavePressure,
-                minimum: 0, maximum: 40, baseline: 0, ticks: [40, 20, 0]
+                key: "paw",
+                label: qsTr("Paw"),
+                color: Colors.wavePressure,
+                scaleKey: "pressure",
+                baseline: 0
             },
             {
-                key: "flow", label: qsTr("Flow"), color: Colors.waveFlow,
-                minimum: -75, maximum: 75, baseline: 0, ticks: [75, 0, -75]
+                key: "flow",
+                label: qsTr("Flow"),
+                color: Colors.waveFlow,
+                scaleKey: "flow",
+                signedScale: true,
+                baseline: 0
             }
         ]
     }

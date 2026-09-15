@@ -11,6 +11,11 @@ Rectangle {
     id: panel
 
     // Each entry: { key, label, color, minimum, maximum, baseline, ticks }
+    //
+    // A channel may instead give { scaleKey, signedScale } and let the panel
+    // take its full scale from the presenter. The fixed scales drew an eight
+    // kilo patient's flow as a flat line inside a plus and minus 75 litre
+    // lane, and pegged an adult's volume against a 40 millilitre ceiling.
     property var channels: []
     property var presenter
     property bool frozen: false
@@ -22,6 +27,31 @@ Rectangle {
     property int sampleRateHz: 22
 
     readonly property int axisHeight: Metrics.px(22)
+
+    readonly property var scales: panel.presenter && panel.presenter.waveformScales
+                                  ? panel.presenter.waveformScales : ({})
+
+    /** Full scale for a channel: its own number, or the patient's. */
+    function fullScale(entry) {
+        if (entry.scaleKey !== undefined && panel.scales[entry.scaleKey] !== undefined)
+            return panel.scales[entry.scaleKey]
+        return entry.maximum !== undefined ? entry.maximum : 1
+    }
+
+    function lowerBound(entry) {
+        if (entry.scaleKey === undefined)
+            return entry.minimum !== undefined ? entry.minimum : 0
+        return entry.signedScale === true ? -panel.fullScale(entry) : 0
+    }
+
+    function ticksFor(entry) {
+        if (entry.ticks !== undefined)
+            return entry.ticks
+        var top = panel.fullScale(entry)
+        if (entry.signedScale === true)
+            return [top, 0, -top]
+        return [top, Math.round(top / 2), 0]
+    }
 
     radius: Radius.medium
     color: Colors.surface
@@ -62,10 +92,10 @@ Rectangle {
                 capacity: Math.max(60, panel.sweepSeconds * panel.sampleRateHz)
                 label: modelData.label
                 traceColor: modelData.color
-                minimumValue: modelData.minimum
-                maximumValue: modelData.maximum
+                minimumValue: panel.lowerBound(modelData)
+                maximumValue: panel.fullScale(modelData)
                 baselineValue: modelData.baseline !== undefined ? modelData.baseline : 0
-                ticks: modelData.ticks
+                ticks: panel.ticksFor(modelData)
                 frozen: panel.frozen
             }
         }

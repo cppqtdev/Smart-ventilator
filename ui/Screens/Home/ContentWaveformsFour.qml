@@ -18,29 +18,30 @@ WaveformPanel {
             key: "paw",
             label: qsTr("Paw"),
             color: Colors.wavePressure,
-            minimum: 0, maximum: 40, baseline: 0,
-            ticks: [40, 20, 0]
+            scaleKey: "pressure",
+            baseline: 0
         },
         {
             key: "flow",
             label: qsTr("Flow"),
             color: Colors.waveFlow,
-            minimum: -75, maximum: 75, baseline: 0,
-            ticks: [75, 0, -75]
+            scaleKey: "flow",
+            signedScale: true,
+            baseline: 0
         },
         {
             key: "volume",
             label: qsTr("V"),
             color: Colors.waveVolume,
-            minimum: 0, maximum: 40, baseline: 0,
-            ticks: [40, 20, 0]
+            scaleKey: "volume",
+            baseline: 0
         },
         {
             key: "co2",
             label: qsTr("PCO2"),
             color: Colors.waveCo2,
-            minimum: 0, maximum: 40, baseline: 0,
-            ticks: [40, 20, 0]
+            scaleKey: "co2",
+            baseline: 0
         }
     ]
 }

@@ -7,6 +7,8 @@
 #include <sv/common/LogBuffer.h>
 #include <sv/common/Units.h>
 
+#include <QVector>
+
 #include "../../controllers/AlarmController.h"
 #include "../../controllers/PatientController.h"
 #include "../../controllers/VentilatorController.h"
@@ -284,6 +286,64 @@ QVariantMap MonitoringPresenter::asvTarget() const
         {QStringLiteral("maxVolume"), maxVolume},
         {QStringLiteral("rows"), rows},
         {QStringLiteral("settingRows"), settingRows}
+    };
+}
+
+namespace {
+
+// A scale is snapped onto a ladder rather than taking whatever number the
+// arithmetic produced, so the lane keeps a round full-scale value the
+// operator can read a trace against, and so the scale does not creep every
+// time a setting moves by one.
+double snapUp(double wanted, const QVector<double> &ladder)
+{
+    for (double step : ladder) {
+        if (wanted <= step)
+            return step;
+    }
+    return ladder.isEmpty() ? wanted : ladder.last();
+}
+
+const QVector<double> kFlowLadder{5, 10, 15, 20, 30, 40, 60, 75, 100, 120, 150, 180};
+const QVector<double> kVolumeLadder{20, 50, 100, 200, 300, 500, 800, 1200, 1600, 2000};
+const QVector<double> kPressureLadder{20, 30, 40, 50, 60, 80, 100};
+const QVector<double> kCo2Ladder{40, 60, 80, 100};
+
+} // namespace
+
+QVariantMap MonitoringPresenter::waveformScales() const
+{
+    if (m_ventilator == nullptr) {
+        return QVariantMap{
+            {QStringLiteral("pressure"), 40.0},
+            {QStringLiteral("flow"), 75.0},
+            {QStringLiteral("volume"), 800.0},
+            {QStringLiteral("co2"), 60.0}
+        };
+    }
+
+    // Pressure is read against the limit that would alarm, so the lane is
+    // sized from that limit rather than from the patient, and with no
+    // headroom over it: a trace at the top of the lane is a trace at the
+    // limit, which is what the reference screens draw.
+    const double pressure = snapUp(m_ventilator->alarmHighPressure(), kPressureLadder);
+
+    // Peak inspiratory flow runs about one and a half litres a minute per
+    // kilogram of ideal body weight across the categories this device covers,
+    // with headroom over it so a spontaneous effort is not clipped.
+    const double ibw = qMax(1, m_ventilator->patientIbwKg());
+    const double flow = snapUp(qMax(5.0, ibw * 1.5), kFlowLadder);
+
+    // Volume is read against the breath that is set, with the same headroom.
+    const double volume = snapUp(qMax(20.0, m_ventilator->tidalVolume() * 1.6), kVolumeLadder);
+
+    const double co2 = snapUp(m_ventilator->alarmHighEtco2() * 1.3, kCo2Ladder);
+
+    return QVariantMap{
+        {QStringLiteral("pressure"), pressure},
+        {QStringLiteral("flow"), flow},
+        {QStringLiteral("volume"), volume},
+        {QStringLiteral("co2"), co2}
     };
 }
 
