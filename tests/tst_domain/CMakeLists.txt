@@ -5,6 +5,7 @@
 set(DOMAIN_TEST_SOURCES
     tst_patient.cpp
     tst_ventilation_mode.cpp
+    tst_parameter_catalog.cpp
 )
 
 foreach(test_source ${DOMAIN_TEST_SOURCES})

@@ -4,6 +4,8 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <sv/domain/PatientCategory.h>
+
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -566,6 +568,9 @@ private:
     bool validateMode(const QString &mode, QString *reason) const;
     bool validateStart(QString *reason) const;
     bool validateSettingEnvelope(const QString &parameter, int value, QString *reason) const;
+    /** @return This patient's size class, parsed from the stored name. */
+    sv::domain::PatientCategory categoryEnum() const;
+
     int categoryMinVt() const;
     int categoryMaxVt() const;
     int categoryMinRr() const;

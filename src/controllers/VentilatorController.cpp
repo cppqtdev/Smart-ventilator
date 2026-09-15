@@ -2,6 +2,8 @@
 
 #include "AlarmController.h"
 #include <sv/domain/ModeCatalog.h>
+#include <sv/domain/PatientCategory.h>
+#include <sv/domain/VentilationParameter.h>
 #include "src/core/DatabaseManager.h"
 
 #include <QtMath>
@@ -1271,29 +1273,55 @@ bool VentilatorController::validateSettingEnvelope(const QString &parameter, int
     return true;
 }
 
+// ---------------------------------------------------------------------------
+//  PATIENT SAFETY LIMITS
+//  These decide whether the device will accept a setting, and they used to be
+//  written out here as weight multipliers - a second copy of numbers the
+//  domain parameter table already carries with its provenance, its device
+//  envelope and its advisory bands. Two tables of the limits that protect a
+//  neonate from an adult tidal volume is the kind of thing that is discovered
+//  when they disagree.
+//
+//  The table is the authority on the envelope. Body weight narrows the tidal
+//  volume inside it, because volume is dosed per kilogram and a static table
+//  cannot be: 6 to 8 mL/kg of predicted body weight for adults and children,
+//  4 to 6 for neonates, taken wide enough here to leave clinical room and
+//  then intersected with the table so it can never open the envelope up.
+// ---------------------------------------------------------------------------
+
+sv::domain::PatientCategory VentilatorController::categoryEnum() const
+{
+    return sv::domain::patientCategoryFromString(m_patientCategory);
+}
+
 int VentilatorController::categoryMinVt() const
 {
-    // Floor and ceiling are computed from different terms, so a category and
-    // a body weight that do not belong together - a neonatal category still
-    // carrying the adult default weight, for one tick during start-up - used
-    // to produce a floor above the ceiling. Every consumer of these bounds
-    // then had an inverted range, and qBound asserts on one.
-    const int byWeight = m_patientIbwKg * (m_patientCategory == QStringLiteral("Pediatric") ? 5 : 4);
-    int floorMl = 150;
-    if (m_patientCategory == QStringLiteral("Neonatal"))
-        floorMl = 10;
-    else if (m_patientCategory == QStringLiteral("Pediatric"))
-        floorMl = 30;
-    return qMin(qMax(floorMl, byWeight), categoryCeilingVt());
+    using namespace sv::domain;
+    const ParameterRange envelope =
+        ParameterCatalog::effectiveRange(ParameterId::TidalVolume, categoryEnum());
+
+    const double perKilogram = categoryEnum() == PatientCategory::Neonatal ? 3.0 : 4.0;
+    const int byWeight = qRound(m_patientIbwKg * perKilogram);
+
+    // Floor and ceiling come from different terms, so a category and a weight
+    // that do not belong together - a neonatal category still carrying the
+    // adult default weight for one tick at start-up - could otherwise put the
+    // floor above the ceiling, and qBound asserts on an inverted range.
+    return qMin(qMax(int(envelope.minimum), byWeight), categoryCeilingVt());
 }
 
 int VentilatorController::categoryCeilingVt() const
 {
-    if (m_patientCategory == QStringLiteral("Neonatal"))
-        return qMin(80, qMax(12, m_patientIbwKg * 8));
-    if (m_patientCategory == QStringLiteral("Pediatric"))
-        return qMin(500, qMax(40, m_patientIbwKg * 10));
-    return qMin(900, qMax(160, m_patientIbwKg * 10));
+    using namespace sv::domain;
+    const ParameterRange envelope =
+        ParameterCatalog::effectiveRange(ParameterId::TidalVolume, categoryEnum());
+
+    const double perKilogram = categoryEnum() == PatientCategory::Neonatal ? 8.0 : 10.0;
+    const int byWeight = qRound(m_patientIbwKg * perKilogram);
+
+    return qBound(int(envelope.minimum),
+                  qMax(int(envelope.minimum), byWeight),
+                  int(envelope.maximum));
 }
 
 int VentilatorController::categoryMaxVt() const
@@ -1303,25 +1331,21 @@ int VentilatorController::categoryMaxVt() const
 
 int VentilatorController::categoryMinRr() const
 {
-    if (m_patientCategory == QStringLiteral("Neonatal"))
-        return 20;
-    if (m_patientCategory == QStringLiteral("Pediatric"))
-        return 10;
-    return 4;
+    using namespace sv::domain;
+    return int(ParameterCatalog::effectiveRange(ParameterId::RespiratoryRate,
+                                                categoryEnum()).minimum);
+}
+
+int VentilatorController::categoryCeilingRr() const
+{
+    using namespace sv::domain;
+    return int(ParameterCatalog::effectiveRange(ParameterId::RespiratoryRate,
+                                                categoryEnum()).maximum);
 }
 
 int VentilatorController::categoryMaxRr() const
 {
     return qMax(categoryMinRr(), categoryCeilingRr());
-}
-
-int VentilatorController::categoryCeilingRr() const
-{
-    if (m_patientCategory == QStringLiteral("Neonatal"))
-        return 80;
-    if (m_patientCategory == QStringLiteral("Pediatric"))
-        return 50;
-    return 35;
 }
 
 void VentilatorController::setCommandMessage(const QString &message)
