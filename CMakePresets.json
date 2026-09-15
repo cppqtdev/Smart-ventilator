@@ -1,0 +1,100 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 22,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "app-debug",
+            "displayName": "App (Debug)",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "SV_BUILD_APP": "ON",
+                "SV_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "tests-debug",
+            "displayName": "Tests (Debug)",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "SV_BUILD_APP": "ON",
+                "SV_BUILD_TESTS": "ON"
+            }
+        },
+        {
+            "name": "dev-all-debug",
+            "displayName": "Dev All (Debug)",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "SV_BUILD_APP": "ON",
+                "SV_BUILD_TESTS": "ON"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "SV_BUILD_APP": "ON",
+                "SV_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "cross-arm",
+            "displayName": "Cross-compile ARM64",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/CrossCompile.cmake",
+                "SV_BUILD_APP": "ON",
+                "SV_BUILD_TESTS": "OFF"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "app-debug",
+            "configurePreset": "app-debug"
+        },
+        {
+            "name": "tests-debug",
+            "configurePreset": "tests-debug"
+        },
+        {
+            "name": "dev-all-debug",
+            "configurePreset": "dev-all-debug"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "cross-arm",
+            "configurePreset": "cross-arm"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "tests-debug",
+            "configurePreset": "tests-debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

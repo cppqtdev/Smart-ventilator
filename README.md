@@ -66,46 +66,59 @@ Ethernet interfaces while keeping the QML-facing API contract unchanged.
 
 ```
 MedicalProject/
-|-- main.cpp                            Application entry point
+|-- CMakeLists.txt                      Root CMake project
+|-- app/
+|   |-- main.cpp                        Application entry point
+|   |-- Application.h/cpp               App composition and QML context setup
 |-- main.qml                            Root ApplicationWindow and screen router
-|-- MedicalProject.pro                  qmake project configuration
-|-- qml.qrc                            QML and asset resource manifest
 |-- Doxyfile                            Doxygen configuration
 |
 |-- src/
 |   |-- core/
+|   |   |-- CMakeLists.txt              sv_legacy_core target
 |   |   |-- AppSettings.h/cpp          QSettings-based persistent preferences
 |   |   |-- DatabaseManager.h/cpp      SQLite schema, read/write operations
 |   |
 |   |-- controllers/
-|       |-- AlarmController.h/cpp      Alarm list model and banner state
-|       |-- ClockController.h/cpp      Real-time clock (IST timezone)
-|       |-- PatientController.h/cpp    Patient demographics and calculations
-|       |-- VentilatorController.h/cpp Simulation engine, waveform buffers, alarm evaluation
+|   |   |-- CMakeLists.txt              sv_legacy_controllers target
+|   |   |-- AlarmController.h/cpp      Alarm list model and banner state
+|   |   |-- ClockController.h/cpp      Real-time clock (IST timezone)
+|   |   |-- PatientController.h/cpp    Patient demographics and calculations
+|   |   |-- VentilatorController.h/cpp Simulation engine, waveform buffers, alarm evaluation
+|   |
+|   |-- backend/                        Backend facade module
+|   |-- common/                         Shared support module
+|   |-- domain/                         Domain model module
+|   |-- infrastructure/                 Persistence and hardware adapter module
+|   |-- models/                         QML-facing model module
+|   |-- services/                       Clinical service module
 |
-|-- qml/
-|   |-- styles/
+|-- ui/
+|   |-- CMakeLists.txt                  Adds UI modules in dependency order
+|   |-- Theme/
 |   |   |-- Colors.qml                 Color palette singleton
 |   |   |-- Typography.qml             Font family and size scale singleton
 |   |   |-- Spacing.qml                Layout spacing and margin singleton
 |   |   |-- Radius.qml                 Border radius singleton
 |   |   |-- qmldir                     QML module registration
 |   |
-|   |-- components/
-|   |   |-- buttons/
-|   |   |   |-- PrimaryButton.qml      Styled action button
-|   |   |   |-- PrefsTabButton.qml     Tab toggle button
+|   |-- Controls/
+|   |   |-- CMakeLists.txt             sv_ui_controls target
+|   |   |-- PrimaryButton.qml          Styled action button
+|   |   |-- PrefsTabButton.qml         Tab toggle button
 |   |   |
-|   |   |-- indicators/
-|   |   |   |-- AppHeader.qml          Top bar (mode, patient, clock, alarms)
-|   |   |   |-- AlarmBanner.qml        Critical/warning notification banner
-|   |   |   |-- DateTimeBanner.qml     Clock and status icon display
-|   |   |
-|   |   |-- cards/
-|   |   |   |-- Panel.qml              Generic styled container
-|   |   |   |-- MetricTile.qml         Numeric value display tile
-|   |   |   |-- ModeCard.qml           Ventilation mode selection card
-|   |   |   |-- StatusPanel.qml        Mode and patient category display
+|   |-- Components/
+|   |   |-- CMakeLists.txt             sv_ui_components target
+|   |   |-- AppHeader.qml              Top bar (mode, patient, clock, alarms)
+|   |
+|   |-- Dialogs/
+|   |   |-- TouchPinDialog.qml         Touch keypad PIN dialog for protected actions
+|   |
+|   |-- Screens/
+|   |   |-- StandbyScreen.qml          Touch-first startup screen
+|   |
+|   |-- Assets/
+|   |   |-- alarm_tone.wav             Alarm audio resource
 |   |   |
 |   |   |-- charts/
 |   |   |   |-- WaveformChart.qml      Canvas-based real-time waveform
@@ -183,7 +196,7 @@ flowchart LR
     Future --> Vent
 ```
 
-**C++ controllers** are registered as QML context properties in main.cpp. Each
+**C++ controllers** are registered as QML context properties in app/Application.cpp. Each
 controller is a QObject subclass exposing Q_PROPERTY bindings and Q_INVOKABLE
 methods. QML components bind directly to controller properties for reactive
 updates.
@@ -231,7 +244,8 @@ event hash chain.
 
 - Qt 6.8 or later (with QtQuick, QtQuickControls2, and QtSql modules)
 - C++17 compatible compiler (GCC 9+, Clang 10+, MSVC 2019+)
-- qmake (included with Qt installation)
+- CMake 3.22+
+- Ninja or Make
 
 ### Build Steps
 
@@ -240,42 +254,35 @@ event hash chain.
 git clone <repository-url>
 cd MedicalProject
 
-# Create a build directory
-mkdir build && cd build
-
-# Run qmake (adjust path to your Qt installation)
-qmake ../MedicalProject.pro
-
-# Build
-make -j$(nproc)
+# Configure and build
+cmake -S . -B build -G Ninja
+cmake --build build --target SmartVentilator
 
 # Run
-./MedicalProject
+./build/app/SmartVentilator
 ```
 
 To inject build metadata:
 
 ```bash
-APP_VERSION=1.2.0 BUILD_ID="$GIT_COMMIT" qmake ../MedicalProject.pro
-make -j$(nproc)
+cmake -S . -B build -G Ninja -DPROJECT_VERSION=1.2.0
+cmake --build build --target SmartVentilator
 ```
 
 ### macOS
 
 ```bash
-mkdir build && cd build
-/path/to/Qt/6.8.x/macos/bin/qmake ../MedicalProject.pro
-make -j$(sysctl -n hw.ncpu)
-open MedicalProject.app
+cmake -S . -B build/Qt_6_8_8_for_macOS-Debug -G Ninja
+cmake --build build/Qt_6_8_8_for_macOS-Debug --target SmartVentilator
+open build/Qt_6_8_8_for_macOS-Debug/app/SmartVentilator.app
 ```
 
 ### Windows (MSVC)
 
 ```cmd
-mkdir build && cd build
-C:\Qt\6.8.x\msvc2019_64\bin\qmake ..\MedicalProject.pro
-nmake
-MedicalProject.exe
+cmake -S . -B build -G Ninja
+cmake --build build --target SmartVentilator
+build\app\SmartVentilator.exe
 ```
 
 

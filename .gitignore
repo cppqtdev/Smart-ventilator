@@ -1,30 +1,38 @@
-# Build output
-/build/
-/build-*/
+# Build
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
 
-# Qt Creator user-specific files
-*.pro.user
-*.pro.user.*
-*.qmlproject.user
-*.qmlproject.user.*
+# Qt
+*.pro.user*
+*.qmlc
+*.jsc
+moc_*
+qrc_*
+ui_*
 *.autosave
 
-# Qt/qmake generated files
-.qmake.stash
-.qtc_clangd/
-Makefile
-Makefile.*
-*.o
-moc_*.cpp
-qrc_*.cpp
-ui_*.h
-*.app/
-
-# Editor metadata
-/.idea/
-/.vscode/
+# IDE
+.idea/
+.vscode/settings.json
 *.swp
 *~
-
-# macOS
 .DS_Store
+
+# Coverage
+*.gcno
+*.gcda
+lcov.info
+coverage/
+
+# Qt Creator per-user state
+CMakeLists.txt.user*
+
+# Files staged for removal after the rework is signed off
+_to_delete/
+
+# Session scratch
+"Claude outputs"/
+.claude/
