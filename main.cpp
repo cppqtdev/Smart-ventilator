@@ -18,6 +18,7 @@
 #include <sv/render/WaveformView.h>
 #include <QStandardPaths>
 
+#include <sv/common/AppIdentity.h>
 #include <sv/common/LogBuffer.h>
 #include <sv/presentation/MonitoringPresenter.h>
 #include <sv/services/CalibrationService.h>
@@ -37,8 +38,7 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     QGuiApplication app(argc, argv);
-    QCoreApplication::setOrganizationName(QStringLiteral("AlsonsTechnology"));
-    QCoreApplication::setApplicationName(QStringLiteral("SmartVentilatorDemo"));
+    sv::common::applyApplicationIdentity();
 
     DatabaseManager databaseManager;
     const bool databaseReady = databaseManager.initialize();
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
 
     sv::common::LogBuffer logBuffer;
     logBuffer.installMessageHandler();
-    logBuffer.setLogFile(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+    logBuffer.setLogFile(sv::common::applicationDataDirectory()
                          + QStringLiteral("/smart-ventilator.log"));
     engine.rootContext()->setContextProperty(QStringLiteral("logBuffer"), &logBuffer);
 

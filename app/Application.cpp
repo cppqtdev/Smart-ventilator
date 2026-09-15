@@ -18,6 +18,7 @@
 #include <sv/render/WaveformView.h>
 #include <QStandardPaths>
 
+#include <sv/common/AppIdentity.h>
 #include <sv/common/LogBuffer.h>
 #include <sv/presentation/MonitoringPresenter.h>
 
@@ -51,7 +52,12 @@ bool Application::initialize()
     if (!dbReady)
         qCritical() << "Database initialization failed:" << m_legacyDatabase->lastError();
 
-    m_database->initialize();
+    // The infrastructure manager is deliberately not initialised. Every
+    // controller on this device persists through the legacy manager, and the
+    // two open the same file under the same connection name, so initialising
+    // both put two writer threads on one handle that is not thread safe. The
+    // only thing holding the infrastructure manager is VentilatorFacade,
+    // which no screen reaches; it is next in line to go.
 
     createServices();
     createLegacyControllers();
@@ -116,9 +122,8 @@ void Application::createLegacyControllers()
 {
     m_logBuffer = std::make_unique<sv::common::LogBuffer>();
     m_logBuffer->installMessageHandler();
-    m_logBuffer->setLogFile(
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-        + QStringLiteral("/smart-ventilator.log"));
+    m_logBuffer->setLogFile(sv::common::applicationDataDirectory()
+                            + QStringLiteral("/smart-ventilator.log"));
 
     m_appSettings = std::make_unique<AppSettings>();
     m_alarmController = std::make_unique<AlarmController>(m_legacyDatabase.get());

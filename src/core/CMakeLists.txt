@@ -29,6 +29,7 @@ target_compile_definitions(sv_legacy_core PRIVATE
 target_link_libraries(sv_legacy_core PUBLIC
     Qt6::Core
     Qt6::Sql
+    sv_common
 )
 
 sv_set_warnings(sv_legacy_core)

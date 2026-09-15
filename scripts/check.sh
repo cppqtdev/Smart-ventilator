@@ -51,6 +51,9 @@ run "nested structs used as default arguments" \
 run "the layout clamp against the layouts on offer" \
     python3 "$root/scripts/layout_count.py"
 
+run "one application identity across both bootstraps" \
+    python3 "$root/scripts/identity_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else

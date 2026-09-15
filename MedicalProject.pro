@@ -14,6 +14,7 @@ CONFIG += c++17
 
 SOURCES += \
         main.cpp \
+        src/common/src/AppIdentity.cpp \
         src/common/src/LogBuffer.cpp \
         src/core/AppSettings.cpp \
         src/core/DatabaseManager.cpp \
@@ -40,6 +41,7 @@ SOURCES += \
         src/transport/src/TelemetryFactory.cpp
 
 HEADERS += \
+        src/common/include/sv/common/AppIdentity.h \
         src/common/include/sv/common/LogBuffer.h \
         src/core/AppSettings.h \
         src/core/DatabaseManager.h \

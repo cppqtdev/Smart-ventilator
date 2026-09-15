@@ -1,5 +1,7 @@
 #include "AppSettings.h"
 
+#include <sv/common/AppIdentity.h>
+
 #include <QDebug>
 
 namespace {
@@ -13,7 +15,8 @@ void syncSettings(QSettings &settings, const QString &key)
 
 AppSettings::AppSettings(QObject *parent)
     : QObject(parent)
-    , m_settings(QStringLiteral("AlsonsTechnology"), QStringLiteral("SmartVentilatorDemo"))
+    , m_settings(sv::common::identity::organizationName(),
+                 sv::common::identity::applicationName())
 {
 }
 

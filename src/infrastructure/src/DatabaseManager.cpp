@@ -4,6 +4,8 @@
 
 #include <sv/infrastructure/DatabaseManager.h>
 
+#include <sv/common/AppIdentity.h>
+
 #include <QDateTime>
 #include <QDir>
 #include <QMetaObject>
@@ -199,14 +201,29 @@ DatabaseManager::DatabaseManager(QObject *parent)
 DatabaseManager::~DatabaseManager()
 {
     stopAsyncWriter();
-    if (m_database.isOpen())
-        m_database.close();
+
+    // The connection name has to be released, not just closed. Left
+    // registered it outlives this object for the life of the process, and
+    // the next manager to open - a second run inside a test, a restart -
+    // would be refused as though someone else still held it.
+    QString connectionName;
+    if (m_database.isValid()) {
+        connectionName = m_database.connectionName();
+        if (m_database.isOpen())
+            m_database.close();
+    }
+
+    // The member has to stop referring to it before it is removed, or Qt
+    // warns that the connection is still in use and keeps it registered.
+    m_database = QSqlDatabase();
+    if (!connectionName.isEmpty())
+        QSqlDatabase::removeDatabase(connectionName);
 }
 
 bool DatabaseManager::initialize()
 {
-    const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (dataDir.isEmpty() || !QDir().mkpath(dataDir)) {
+    const QString dataDir = sv::common::applicationDataDirectory();
+    if (dataDir.isEmpty()) {
         setStorageState(false, true, true, QStringLiteral("Application data directory unavailable"));
         setError(QStringLiteral("Unable to create application data directory"));
         return false;
@@ -217,10 +234,23 @@ bool DatabaseManager::initialize()
         return false;
 
     const QString connectionName = QStringLiteral("SmartVentilatorConnection");
-    if (QSqlDatabase::contains(connectionName))
-        m_database = QSqlDatabase::database(connectionName);
-    else
-        m_database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
+
+    // Two managers adopting one connection is two writer threads on a handle
+    // that is not thread safe, and the second setDatabaseName lands on an
+    // already open database and is ignored. The CMake bootstrap did exactly
+    // that: it built this manager and the infrastructure one and initialised
+    // both. A second opener is refused and says so, rather than quietly
+    // sharing the first one's handle.
+    if (QSqlDatabase::contains(connectionName)) {
+        setStorageState(false, true, true,
+                        QStringLiteral("Database already open elsewhere in this process"));
+        setError(QStringLiteral("A database manager already holds '%1' - "
+                                "one process opens the clinical database once")
+                     .arg(connectionName));
+        return false;
+    }
+
+    m_database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connectionName);
 
     m_database.setDatabaseName(m_databasePath);
     if (!m_database.open()) {

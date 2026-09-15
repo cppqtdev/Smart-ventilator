@@ -4,6 +4,8 @@
 
 #include "Application.h"
 
+#include <sv/common/AppIdentity.h>
+
 #include <QGuiApplication>
 #include <QQuickStyle>
 #include <QByteArray>
@@ -14,8 +16,7 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     QGuiApplication app(argc, argv);
-    QCoreApplication::setOrganizationName(QStringLiteral("TechCoderHub LLP"));
-    QCoreApplication::setApplicationName(QStringLiteral("SmartVentilator"));
+    sv::common::applyApplicationIdentity();
 
     Application application;
     application.initialize();
