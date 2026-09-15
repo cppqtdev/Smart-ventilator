@@ -29,6 +29,24 @@ T.AbstractButton {
     property bool uppercaseLabel: false
     property int labelPadding: Spacing.lg
 
+    // Selection this control does not own.
+    //
+    // T.AbstractButton flips checked itself on release. Where checked is
+    // bound to state the caller owns, that write lands on top of the
+    // binding, and if the model refuses the change - a layout id clamped
+    // away, a mode the controller rejects - the button goes on showing a
+    // selection that never happened. Two layouts lit at once is that bug.
+    //
+    // With this set the control writes nothing: onClicked asks, the model
+    // decides, and the binding is the only thing that moves the button.
+    // Clear it for a control that genuinely owns its own toggle and reports
+    // it through onToggled.
+    property bool externalCheck: true
+
+    nextCheckState: function () {
+        return control.externalCheck ? control.checked : !control.checked
+    }
+
     readonly property bool active: control.checkable ? control.checked : control.down
 
     readonly property color baseColor: {

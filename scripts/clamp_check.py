@@ -28,6 +28,10 @@ CALL = re.compile(r"\b(qBound|std::clamp)\s*(?:<[^>]*>)?\s*\(")
 # that type.
 EXPLICIT = re.compile(r"\bqBound\s*<[^>]+>\s*\(")
 LITERAL = re.compile(r"^-?(?:\d+\.?\d*[fu]?|0x[0-9A-Fa-f]+)$")
+
+# A constexpr in the same file is as fixed as a literal, so a bound that
+# names one cannot invert at run time.
+CONSTEXPR = re.compile(r"\bconstexpr\s+\w[\w:<>]*\s+(\w+)\s*=")
 ORDERED = re.compile(r"\b(qMin|qMax|std::min|std::max)\s*(?:<[^>]*>)?\s*\(")
 
 
@@ -65,8 +69,13 @@ def main() -> int:
             if not name.endswith((".cpp", ".h")):
                 continue
             path = os.path.join(base, name)
-            for line_no, line in enumerate(
-                    open(path, encoding="utf-8").read().split("\n"), 1):
+            text = open(path, encoding="utf-8").read()
+            constants = set(CONSTEXPR.findall(text))
+
+            def fixed(value: str) -> bool:
+                return bool(LITERAL.match(value)) or value in constants
+
+            for line_no, line in enumerate(text.split("\n"), 1):
                 if line.strip().startswith("//"):
                     continue
                 for match in EXPLICIT.finditer(line):
@@ -85,13 +94,13 @@ def main() -> int:
                     if pair is None:
                         continue
                     low, high = pair
-                    if LITERAL.match(low) and LITERAL.match(high):
+                    if fixed(low) and fixed(high):
                         continue
                     if ORDERED.search(low) or ORDERED.search(high):
                         continue
                     # A literal floor against an ordered ceiling is already
                     # safe; the ordering is visible on the ceiling.
-                    if LITERAL.match(low) and ORDERED.search(high):
+                    if fixed(low) and ORDERED.search(high):
                         continue
                     problems.append(
                         "%s:%d: %s bounds '%s' and '%s' are computed - order "

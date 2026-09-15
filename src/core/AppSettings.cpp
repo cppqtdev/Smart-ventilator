@@ -126,9 +126,15 @@ void AppSettings::setTimeZoneId(const QString &value)
     emit timeZoneIdChanged();
 }
 
+// The number of arrangements ui/Screens/Home/HomeLayouts.qml offers. A
+// layout id above this is clamped away, which leaves the picker showing the
+// old selection lit beside the one that was pressed. scripts/layout_count.py
+// compares the two, because the last time they drifted apart nothing said so.
+static constexpr int kMonitoringLayoutCount = 7;
+
 void AppSettings::setMonitoringLayout(int value)
 {
-    value = qBound(1, value, 5);
+    value = qBound(1, value, kMonitoringLayoutCount);
     if (monitoringLayout() == value)
         return;
     m_settings.setValue(QStringLiteral("ui/monitoringLayout"), value);

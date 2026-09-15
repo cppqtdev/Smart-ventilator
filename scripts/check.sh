@@ -48,6 +48,9 @@ run "layout tokens against the reference screens" \
 run "nested structs used as default arguments" \
     python3 "$root/scripts/nested_default_check.py"
 
+run "the layout clamp against the layouts on offer" \
+    python3 "$root/scripts/layout_count.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else
