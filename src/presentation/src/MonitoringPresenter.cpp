@@ -224,13 +224,55 @@ QVariantMap MonitoringPresenter::asvTarget() const
     const double rate = m_ventilator->ftotal();
     const double tidalVolume = m_ventilator->vte();
     const double minuteVolume = m_ventilator->expMinVol();
+    const double ibw = qMax(1, m_ventilator->patientIbwKg());
 
     // The window an adaptive mode is allowed to pick a rate and a volume
     // inside: fast enough to clear carbon dioxide, slow enough to let the
     // lung empty, and a volume that stays off both the dead space at the
     // bottom and the overdistension limit at the top.
-    const double minVolume = 4.4 * m_ventilator->patientIbwKg();
-    const double maxVolume = 12.0 * m_ventilator->patientIbwKg();
+    const double minVolume = 4.4 * ibw;
+    const double maxVolume = 12.0 * ibw;
+
+    // What the mode is asking for against what the patient is giving back.
+    // A row with no target is a measurement the device does not aim at, and
+    // one with no current has not been measured yet; both read as dashes.
+    const auto row = [](const QString &label, const QString &unit,
+                        const QVariant &target, const QVariant &current) {
+        return QVariantMap{
+            {QStringLiteral("label"), label},
+            {QStringLiteral("unit"), unit},
+            {QStringLiteral("target"), target},
+            {QStringLiteral("current"), current}
+        };
+    };
+
+    const auto measured = [](double value) {
+        return value > 0.0 ? QVariant(value) : QVariant();
+    };
+
+    const double setPinsp = m_ventilator->peep() + m_ventilator->pressureSupport();
+
+    QVariantList rows{
+        row(QStringLiteral("Pinsp"), QStringLiteral("cmH2O"),
+            setPinsp, measured(m_ventilator->ppeak())),
+        row(QStringLiteral("fControl"), QStringLiteral("b/min"),
+            m_ventilator->respiratoryRate(), measured(rate)),
+        row(QStringLiteral("SpO2"), QStringLiteral("%"),
+            QVariant(), measured(m_ventilator->spo2()))
+    };
+
+    QVariantList settingRows{
+        row(QStringLiteral("Pinsp"), QStringLiteral("cmH2O"),
+            setPinsp, measured(m_ventilator->ppeak())),
+        row(QStringLiteral("Plateau"), QStringLiteral("cmH2O"),
+            QVariant(), measured(m_ventilator->pplat())),
+        row(QStringLiteral("Pmean"), QStringLiteral("cmH2O"),
+            QVariant(), measured(m_ventilator->pmean())),
+        row(QStringLiteral("PEEP/CPAP"), QStringLiteral("cmH2O"),
+            m_ventilator->peep(), measured(m_ventilator->totalPeep())),
+        row(QStringLiteral("Vt/IBW"), QStringLiteral("mL/kg"),
+            QVariant(), measured(tidalVolume / ibw))
+    };
 
     return QVariantMap{
         {QStringLiteral("minuteVolume"), minuteVolume},
@@ -239,7 +281,9 @@ QVariantMap MonitoringPresenter::asvTarget() const
         {QStringLiteral("minRate"), 15.0},
         {QStringLiteral("maxRate"), 60.0},
         {QStringLiteral("minVolume"), minVolume},
-        {QStringLiteral("maxVolume"), maxVolume}
+        {QStringLiteral("maxVolume"), maxVolume},
+        {QStringLiteral("rows"), rows},
+        {QStringLiteral("settingRows"), settingRows}
     };
 }
 

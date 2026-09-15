@@ -1391,8 +1391,52 @@ void VentilatorController::reseedForPatientCategory()
         changed = true;
     }
 
-    if (changed)
+    // The volume alarms have to follow the patient as well. An eight kilo
+    // patient delivering 63 mL against an adult low tidal volume limit of
+    // 300 sits in a critical alarm from the first breath, which is how the
+    // screen came to show Low Tidal Volume and Low Minute Volume over a
+    // ventilator doing exactly what it was asked.
+    const int ibw = qMax(1, m_patientIbwKg);
+
+    const int lowVt = qBound(20, qRound(m_tidalVolume * 0.5),
+                             qMax(20, m_tidalVolume - 20));
+    if (m_alarmLowVt != lowVt) {
+        m_alarmLowVt = lowVt;
+        changed = true;
+    }
+
+    const int highVt = qBound(qMin(2000, m_alarmLowVt + 20),
+                              qRound(m_tidalVolume * 1.8), 2000);
+    if (m_alarmHighVt != highVt) {
+        m_alarmHighVt = highVt;
+        changed = true;
+    }
+
+    // Around 0.2 L per kilo per minute is the expected minute volume, so the
+    // window is half that below and nearly double it above.
+    const int highMv = qBound(1, qRound(ibw * 0.35), 30);
+    if (m_alarmHighMv != highMv) {
+        m_alarmHighMv = highMv;
+        changed = true;
+    }
+
+    const int lowMv = qBound(0, qRound(ibw * 0.1), qMax(0, m_alarmHighMv - 1));
+    if (m_alarmLowMv != lowMv) {
+        m_alarmLowMv = lowMv;
+        changed = true;
+    }
+
+    const int highRate = qBound(qMax(5, m_alarmLowRate + 2),
+                                qRound(m_respiratoryRate * 2.0), 80);
+    if (m_alarmHighRate != highRate) {
+        m_alarmHighRate = highRate;
+        changed = true;
+    }
+
+    if (changed) {
         emit settingsChanged();
+        evaluateAlarms();
+    }
 }
 
 void VentilatorController::applyTelemetry(const QVariantMap &values)

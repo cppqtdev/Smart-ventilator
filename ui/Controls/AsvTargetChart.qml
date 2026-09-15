@@ -28,7 +28,15 @@ Rectangle {
     readonly property real minVolume: chart.field("minVolume", 200)
     readonly property real maxVolume: chart.field("maxVolume", 800)
 
-    readonly property real volumeCeiling: Math.max(1600, chart.maxVolume * 1.6)
+    // A fixed ceiling of 1600 drew an eight kilo patient's whole curve as a
+    // flat line along the bottom axis. The scale follows the window the mode
+    // may choose inside, with room above it for a target that overshoots.
+    readonly property real volumeCeiling:
+        Math.max(60, chart.maxVolume * 1.8,
+                 chart.tidalVolume * 1.3,
+                 chart.minuteVolume > 0
+                     ? chart.minuteVolume * 1000.0 / Math.max(1, chart.minRate) * 1.15
+                     : 0)
 
     function field(name, fallback) {
         if (!chart.target)
@@ -70,7 +78,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.leftMargin: Spacing.sm
         anchors.verticalCenter: plot.verticalCenter
-        text: Math.round(chart.tidalVolume)
+        text: Math.round(chart.volumeCeiling / 2)
         color: Colors.textSecondary
         font.family: Typography.monoFamily
         font.pixelSize: Typography.micro
@@ -147,7 +155,8 @@ Rectangle {
             // The window the mode may choose inside.
             context.fillStyle = Colors.controlTrack
             var boxLeft = plot.xFor(chart.minRate)
-            var boxRight = plot.xFor(chart.maxRate * 0.55)
+            var boxRight = plot.xFor(chart.minRate
+                                     + (chart.maxRate - chart.minRate) * 0.55)
             var boxTop = plot.yFor(chart.maxVolume)
             var boxBottom = plot.yFor(chart.minVolume)
             context.globalAlpha = 0.55
