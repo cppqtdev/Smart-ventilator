@@ -40,6 +40,20 @@ QtObject {
             label: qsTr("Layout 5"),
             source: "ContentDynamicLung.qml",
             cells: [{ x: 0, y: 0, w: 2, h: 2 }]
+        },
+        {
+            id: 6,
+            label: qsTr("Layout 6"),
+            source: "ContentDualGraphics.qml",
+            cells: [{ x: 0, y: 0, w: 2, h: 1 },
+                    { x: 0, y: 1, w: 1, h: 1 }, { x: 1, y: 1, w: 1, h: 1 }]
+        },
+        {
+            id: 7,
+            label: qsTr("Layout 7"),
+            source: "ContentAsvPair.qml",
+            cells: [{ x: 0, y: 0, w: 2, h: 1 },
+                    { x: 0, y: 1, w: 1, h: 1 }, { x: 1, y: 1, w: 1, h: 1 }]
         }
     ]
 

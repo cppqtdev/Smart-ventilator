@@ -148,6 +148,7 @@
         <file>ui/Controls/AppIcon.qml</file>
         <file>ui/Controls/AppTabBar.qml</file>
         <file>ui/Controls/AppTabButton.qml</file>
+        <file>ui/Controls/AsvTargetChart.qml</file>
         <file>ui/Controls/ChipButton.qml</file>
         <file>ui/Controls/CurvedSideButton.qml</file>
         <file>ui/Controls/DialControl.qml</file>
@@ -175,6 +176,9 @@
         <file>ui/Screens/StandbyScreen.qml</file>
         <file>ui/Screens/SystemScreen.qml</file>
         <file>ui/Screens/ToolsScreen.qml</file>
+        <file>ui/Screens/Home/AsvTargetPanel.qml</file>
+        <file>ui/Screens/Home/ContentAsvPair.qml</file>
+        <file>ui/Screens/Home/ContentDualGraphics.qml</file>
         <file>ui/Screens/Home/ContentDynamicLung.qml</file>
         <file>ui/Screens/Home/ContentMonitoring.qml</file>
         <file>ui/Screens/Home/ContentWaveformNumerics.qml</file>
@@ -182,6 +186,7 @@
         <file>ui/Screens/Home/ContentWaveformsThree.qml</file>
         <file>ui/Screens/Home/HomeLayouts.qml</file>
         <file>ui/Screens/Home/LayoutPicker.qml</file>
+        <file>ui/Screens/Home/LungPanel.qml</file>
         <file>ui/Screens/Panes/AlarmLimitColumn.qml</file>
         <file>ui/Screens/Panes/AlarmLimitRing.qml</file>
         <file>ui/Screens/Panes/AlarmsPane.qml</file>

@@ -25,6 +25,10 @@ Rectangle {
     readonly property var patient: content.presenter ? content.presenter.patient : ({})
     readonly property bool ventilating: content.presenter ? content.presenter.ventilating : false
 
+    // Plethysmographic variability is not measured without a plethysmograph,
+    // so it reads as dashes rather than inventing a number.
+    readonly property string pleth: "-------"
+
     signal patientClicked()
 
     radius: Radius.medium
@@ -91,12 +95,13 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            Text {
+            NumericReadout {
                 Layout.alignment: Qt.AlignTop
-                text: qsTr("PVI")
-                color: Colors.textSecondary
-                font.family: Typography.family
-                font.pixelSize: Typography.label
+                Layout.preferredWidth: Metrics.px(90)
+                alignment: Text.AlignRight
+                label: qsTr("PVI")
+                value: content.pleth
+                unit: "%"
             }
         }
 
@@ -140,11 +145,15 @@ Rectangle {
             }
         }
 
+        // The reference puts all six across the foot of the screen. That
+        // only fits where the pane is wide enough for them, so the row count
+        // follows the width rather than being fixed at three.
         GridLayout {
             Layout.fillWidth: true
-            columns: 3
+            columns: Math.max(2, Math.min(content.readouts.length,
+                                          Math.floor(width / Metrics.px(118))))
             rowSpacing: Spacing.md
-            columnSpacing: Metrics.px(28)
+            columnSpacing: Metrics.px(20)
 
             Repeater {
                 model: content.readouts
@@ -153,7 +162,7 @@ Rectangle {
                     required property var modelData
 
                     Layout.fillWidth: true
-                    Layout.minimumWidth: Metrics.px(110)
+                    Layout.minimumWidth: Metrics.px(96)
 
                     label: modelData.label
                     value: modelData.value

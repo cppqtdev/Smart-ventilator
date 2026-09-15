@@ -36,6 +36,7 @@ class MonitoringPresenter : public QObject
     Q_PROPERTY(QString mode READ mode NOTIFY settingsChanged)
     Q_PROPERTY(bool ventilating READ ventilating NOTIFY settingsChanged)
     Q_PROPERTY(int measuredRate READ measuredRate NOTIFY measurementsChanged)
+    Q_PROPERTY(QVariantMap asvTarget READ asvTarget NOTIFY measurementsChanged)
     Q_PROPERTY(QString readinessReason READ readinessReason NOTIFY settingsChanged)
     Q_PROPERTY(bool frozen READ frozen NOTIFY settingsChanged)
     Q_PROPERTY(bool nonInvasive READ nonInvasive NOTIFY settingsChanged)
@@ -59,6 +60,16 @@ public:
 
     /** @return Total respiratory rate the device reports, for the lung motion. */
     int measuredRate() const;
+
+    /**
+     * @brief The operating point of the adaptive target and the window it
+     *        is allowed to move in.
+     * @return Keys minuteVolume, rate, tidalVolume, minRate, maxRate,
+     *         minVolume and maxVolume. The chart draws the window as a box,
+     *         the constant minute volume through it as a curve, and the
+     *         operating point as a dot.
+     */
+    QVariantMap asvTarget() const;
     QString readinessReason() const;
     bool frozen() const;
     bool nonInvasive() const;

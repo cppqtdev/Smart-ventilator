@@ -216,6 +216,33 @@ int MonitoringPresenter::measuredRate() const
     return int(qRound(m_ventilator->ftotal()));
 }
 
+QVariantMap MonitoringPresenter::asvTarget() const
+{
+    if (m_ventilator == nullptr)
+        return {};
+
+    const double rate = m_ventilator->ftotal();
+    const double tidalVolume = m_ventilator->vte();
+    const double minuteVolume = m_ventilator->expMinVol();
+
+    // The window an adaptive mode is allowed to pick a rate and a volume
+    // inside: fast enough to clear carbon dioxide, slow enough to let the
+    // lung empty, and a volume that stays off both the dead space at the
+    // bottom and the overdistension limit at the top.
+    const double minVolume = 4.4 * m_ventilator->patientIbwKg();
+    const double maxVolume = 12.0 * m_ventilator->patientIbwKg();
+
+    return QVariantMap{
+        {QStringLiteral("minuteVolume"), minuteVolume},
+        {QStringLiteral("rate"), rate},
+        {QStringLiteral("tidalVolume"), tidalVolume},
+        {QStringLiteral("minRate"), 15.0},
+        {QStringLiteral("maxRate"), 60.0},
+        {QStringLiteral("minVolume"), minVolume},
+        {QStringLiteral("maxVolume"), maxVolume}
+    };
+}
+
 QString MonitoringPresenter::readinessReason() const
 {
     return m_ventilator != nullptr ? m_ventilator->readinessReason() : QString();
