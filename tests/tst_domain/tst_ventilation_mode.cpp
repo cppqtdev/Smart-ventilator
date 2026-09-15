@@ -7,18 +7,19 @@
 #include <QTest>
 
 using namespace sv::domain;
-// QCOMPARE renders whatever it is given as a char*. Argument dependent
-// lookup finds sv::domain::toString for this type, which returns a QString, and
-// QTest's generic fallback cannot turn one of those into a char*, so the
-// test would not compile at all. This is that rendering, and it is what
-// QCOMPARE prints when the comparison fails.
-namespace QTest {
-template <>
-inline char *toString(const sv::domain::VentilationMode &value)
-{
-    return qstrdup(sv::domain::toString(value).toUtf8().constData());
-}
-} // namespace QTest
+
+// These enums cannot go to QCOMPARE directly. QCOMPARE renders both sides as
+// a char* so it can say what it saw, and argument dependent lookup hands it
+// sv::domain::toString, which returns a QString. A QString is not a char*, so
+// the test fails to compile rather than failing to pass. Specialising
+// QTest::toString does not help either: the domain function is not a template
+// and wins overload resolution against a template specialisation.
+//
+// Comparing the names is exact - every value has its own name, and
+// toString_allModes below checks that - and it is what makes a failure
+// readable: "PCV" against "SIMV" rather than two numbers.
+#define COMPARE_MODE(actual, expected) \
+    QCOMPARE(sv::domain::toString(actual), sv::domain::toString(expected))
 
 
 
@@ -58,12 +59,12 @@ void TestVentilationMode::toString_allModes()
 
 void TestVentilationMode::fromString_pcv()
 {
-    QCOMPARE(fromString(QStringLiteral("PCV")), VentilationMode::PCV);
+    COMPARE_MODE(fromString(QStringLiteral("PCV")), VentilationMode::PCV);
 }
 
 void TestVentilationMode::fromString_invalid()
 {
-    QCOMPARE(fromString(QStringLiteral("INVALID")), VentilationMode::ASV);
+    COMPARE_MODE(fromString(QStringLiteral("INVALID")), VentilationMode::ASV);
 }
 
 void TestVentilationMode::isSupported_allModes()

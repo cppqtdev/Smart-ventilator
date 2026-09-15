@@ -11,18 +11,20 @@
 
 using namespace sv::services;
 using namespace sv::domain;
-// QCOMPARE renders whatever it is given as a char*. Argument dependent
-// lookup finds sv::domain::toString for this type, which returns a QString,
-// and QTest's generic fallback cannot turn one of those into a char*, so the
-// test would not compile at all. This is that rendering, and it is what
-// QCOMPARE prints when the comparison fails.
-namespace QTest {
-template <>
-inline char *toString(const sv::domain::AlarmPriority &value)
-{
-    return qstrdup(sv::domain::toString(value).toUtf8().constData());
-}
-} // namespace QTest
+
+// These enums cannot go to QCOMPARE directly. QCOMPARE renders both sides as
+// a char* so it can say what it saw, and argument dependent lookup hands it
+// sv::domain::toString, which returns a QString. A QString is not a char*, so
+// the test fails to compile rather than failing to pass. Specialising
+// QTest::toString does not help either: the domain function is not a template
+// and wins overload resolution against a template specialisation.
+//
+// Comparing the names is exact - every value has its own name, and
+// each name is distinct - and it is what makes a failure
+// readable: "PCV" against "SIMV" rather than two numbers.
+#define COMPARE_PRIORITY(actual, expected) \
+    QCOMPARE(sv::domain::toString(actual), sv::domain::toString(expected))
+
 
 
 class TestAlarmEvaluator : public QObject
@@ -64,7 +66,7 @@ void TestAlarmEvaluator::highPressure_critical()
 
     AlarmState state = eval.evaluate(m, defaultAlarmLimits(), defaultSetpoints(), true);
     QVERIFY(state.active);
-    QCOMPARE(state.priority, AlarmPriority::Critical);
+    COMPARE_PRIORITY(state.priority, AlarmPriority::Critical);
     QCOMPARE(state.headline, QStringLiteral("High Pressure"));
 }
 
@@ -78,7 +80,7 @@ void TestAlarmEvaluator::lowSpo2_warning()
 
     AlarmState state = eval.evaluate(m, defaultAlarmLimits(), defaultSetpoints(), true);
     QVERIFY(state.active);
-    QCOMPARE(state.priority, AlarmPriority::Warning);
+    COMPARE_PRIORITY(state.priority, AlarmPriority::Warning);
     QCOMPARE(state.headline, QStringLiteral("Low SpO2"));
 }
 
@@ -91,7 +93,7 @@ void TestAlarmEvaluator::patientDisconnected_critical()
 
     AlarmState state = eval.evaluate(m, defaultAlarmLimits(), defaultSetpoints(), true);
     QVERIFY(state.active);
-    QCOMPARE(state.priority, AlarmPriority::Critical);
+    COMPARE_PRIORITY(state.priority, AlarmPriority::Critical);
     QCOMPARE(state.headline, QStringLiteral("Patient Disconnect"));
 }
 
@@ -103,7 +105,7 @@ void TestAlarmEvaluator::circuitOcclusion_critical()
 
     AlarmState state = eval.evaluate(m, defaultAlarmLimits(), defaultSetpoints(), true);
     QVERIFY(state.active);
-    QCOMPARE(state.priority, AlarmPriority::Critical);
+    COMPARE_PRIORITY(state.priority, AlarmPriority::Critical);
     QCOMPARE(state.headline, QStringLiteral("Circuit Occlusion"));
 }
 
