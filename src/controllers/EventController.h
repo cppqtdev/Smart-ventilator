@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QString>
 #include <QVector>
 
 class DatabaseManager;
@@ -15,6 +16,8 @@ class DatabaseManager;
 class EventController : public QAbstractListModel
 {
     Q_OBJECT
+    Q_PROPERTY(QString filter READ filter WRITE setFilter NOTIFY filterChanged)
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
 public:
     enum EventRoles {
@@ -52,6 +55,21 @@ public:
     /** @brief Reloads all events from the database into the model. */
     Q_INVOKABLE void refresh();
 
+    /** @brief Adds one already-persisted event to the top of the model. */
+    void appendRow(const QString &source,
+                   const QString &description,
+                   const QString &severity);
+
+    /** @return The active tab key: "all", "alarm" or "setting". */
+    QString filter() const { return m_filter; }
+
+    /** @brief Shows only the rows belonging to @p filter. */
+    void setFilter(const QString &filter);
+
+signals:
+    void filterChanged();
+    void countChanged();
+
 private:
     void loadFromDatabase();
 
@@ -62,6 +80,16 @@ private:
         QString severity;
     };
 
+    /** @return true when @p row belongs in the current tab. */
+    bool matches(const EventRow &row) const;
+
+    /** @brief Rebuilds the visible rows from the loaded set. */
+    void applyFilter();
+
+    // Every loaded row is kept, because a tab change is a view change and
+    // must not cost a database round trip.
+    QVector<EventRow> m_all;
     QVector<EventRow> m_rows;
+    QString m_filter = QStringLiteral("all");
     DatabaseManager *m_database = nullptr;
 };

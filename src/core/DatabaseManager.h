@@ -138,6 +138,11 @@ signals:
     void errorOccurred(const QString &message);
     void storageStateChanged();
 
+    /** @brief Emitted for every accepted event, so list models can follow. */
+    void eventLogged(const QString &source,
+                     const QString &description,
+                     const QString &status);
+
 private:
     void setError(const QString &message);
     void setStorageState(bool ready, bool readOnly, bool degraded, const QString &state);

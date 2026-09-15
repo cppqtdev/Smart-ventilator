@@ -108,6 +108,7 @@ Item {
         Shape {
             anchors.fill: parent
             antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
                 fillColor: root.backgroundColor
@@ -170,6 +171,7 @@ Item {
         Shape {
             anchors.fill: parent
             antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
                 fillColor: root.backgroundColor
@@ -232,6 +234,7 @@ Item {
         Shape {
             anchors.fill: parent
             antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
                 fillColor: root.backgroundColor
@@ -294,6 +297,7 @@ Item {
         Shape {
             anchors.fill: parent
             antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
                 fillColor: root.backgroundColor

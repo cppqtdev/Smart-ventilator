@@ -20,7 +20,23 @@ ColumnLayout {
     // The pane sets the size, because only the pane knows how many columns
     // share the width.
     property int gaugeSize: Metrics.px(126)
-    readonly property int gaugeTextWidth: column.gaugeSize - Metrics.dialStroke * 2 - Spacing.sm
+
+    // RingGauge sizes its stroke from its diameter, so the clear space
+    // inside it has to be worked out the same way.
+    readonly property int gaugeStroke:
+        Math.max(Metrics.px(4), Math.round(column.gaugeSize * 0.068))
+    readonly property int gaugeTextWidth:
+        column.gaugeSize - column.gaugeStroke * 2 - Spacing.sm
+
+    // Limits arrive as doubles. A raw one prints as 15.200000000000001,
+    // which is unreadable on a ring this size.
+    function show(value) {
+        if (value === undefined || value === null)
+            return "---"
+        if (isNaN(value))
+            return String(value)
+        return Number.isInteger(value) ? String(value) : Number(value).toFixed(1)
+    }
 
     readonly property real span: Math.max(0.000001,
         (column.entry.to !== undefined ? column.entry.to : 100)
@@ -58,7 +74,7 @@ ColumnLayout {
             anchors.centerIn: parent
             width: column.gaugeTextWidth
             height: column.gaugeTextWidth
-            text: column.entry.high !== undefined ? String(column.entry.high) : "---"
+            text: column.show(column.entry.high)
             color: Colors.textPrimary
             font.family: Typography.monoFamily
             font.pixelSize: Typography.readoutValue
@@ -107,7 +123,7 @@ ColumnLayout {
             anchors.left: parent.right
             anchors.leftMargin: Spacing.xs
             anchors.bottom: parent.bottom
-            text: column.entry.current !== undefined ? String(column.entry.current) : ""
+            text: column.entry.current !== undefined ? column.show(column.entry.current) : ""
             color: Colors.textSecondary
             font.family: Typography.monoFamily
             font.pixelSize: Typography.micro
@@ -126,7 +142,7 @@ ColumnLayout {
             anchors.centerIn: parent
             width: column.gaugeTextWidth
             height: column.gaugeTextWidth
-            text: column.entry.low !== undefined ? String(column.entry.low) : "---"
+            text: column.show(column.entry.low)
             color: Colors.textPrimary
             font.family: Typography.monoFamily
             font.pixelSize: Typography.readoutValue

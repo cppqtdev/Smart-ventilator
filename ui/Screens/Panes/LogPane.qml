@@ -74,7 +74,9 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: Metrics.px(2)
+            // A filtered-out row collapses to nothing, so the list spacing is
+            // carried by the row itself rather than by the view.
+            spacing: 0
             model: pane.logData
 
             delegate: Item {
@@ -85,11 +87,12 @@ Item {
                 required property string message
 
                 width: ListView.view.width
-                height: visible ? Metrics.px(23) : 0
+                height: visible ? Metrics.px(25) : 0
                 visible: level >= pane.minimumLevel
 
                 RowLayout {
                     anchors.fill: parent
+                    anchors.bottomMargin: Metrics.px(2)
                     anchors.leftMargin: Spacing.sm
                     anchors.rightMargin: Spacing.sm
                     spacing: Spacing.md

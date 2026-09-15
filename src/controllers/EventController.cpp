@@ -6,11 +6,19 @@
 #include <QSqlError>
 #include <QDebug>
 
+#include <utility>
+
 EventController::EventController(DatabaseManager *database, QObject *parent)
     : QAbstractListModel(parent)
     , m_database(database)
 {
     loadFromDatabase();
+    applyFilter();
+
+    if (m_database) {
+        connect(m_database, &DatabaseManager::eventLogged,
+                this, &EventController::appendRow);
+    }
 }
 
 int EventController::rowCount(const QModelIndex &parent) const
@@ -50,24 +58,94 @@ void EventController::addEvent(const QString &source,
                                 const QString &description,
                                 const QString &severity)
 {
+    // The database echoes every accepted write back through eventLogged, so
+    // the row is added there rather than twice.
     if (m_database) {
         m_database->logEvent(source, description, severity);
+        return;
     }
 
+    appendRow(source, description, severity);
+}
+
+void EventController::appendRow(const QString &source,
+                                 const QString &description,
+                                 const QString &severity)
+{
     const QString timestamp = QDateTime::currentDateTime().toString(
         QStringLiteral("HH:mm:ss"));
 
+    QString level = severity.toLower();
+    if (level != QStringLiteral("critical") && level != QStringLiteral("warning"))
+        level = QStringLiteral("normal");
+
+    const EventRow row{ timestamp, source, description, level };
+    m_all.prepend(row);
+
+    if (!matches(row))
+        return;
+
     beginInsertRows(QModelIndex(), 0, 0);
-    m_rows.prepend({ timestamp, source, description, severity });
+    m_rows.prepend(row);
     endInsertRows();
+    emit countChanged();
 }
 
 void EventController::refresh()
 {
+    m_all.clear();
+    loadFromDatabase();
+    applyFilter();
+}
+
+void EventController::setFilter(const QString &filter)
+{
+    const QString key = filter.isEmpty() ? QStringLiteral("all") : filter;
+    if (key == m_filter)
+        return;
+
+    m_filter = key;
+    emit filterChanged();
+    applyFilter();
+}
+
+bool EventController::matches(const EventRow &row) const
+{
+    if (m_filter == QStringLiteral("all"))
+        return true;
+
+    const QString source = row.source.toLower();
+
+    if (m_filter == QStringLiteral("alarm")) {
+        return source == QStringLiteral("alarm")
+            || source == QStringLiteral("safety")
+            || row.severity == QStringLiteral("critical")
+            || row.severity == QStringLiteral("warning");
+    }
+
+    if (m_filter == QStringLiteral("setting")) {
+        return source == QStringLiteral("setting")
+            || source == QStringLiteral("mode")
+            || source == QStringLiteral("parameter")
+            || source == QStringLiteral("ventilation")
+            || source == QStringLiteral("patient")
+            || source == QStringLiteral("calibration");
+    }
+
+    return true;
+}
+
+void EventController::applyFilter()
+{
     beginResetModel();
     m_rows.clear();
-    loadFromDatabase();
+    m_rows.reserve(m_all.size());
+    for (const EventRow &row : std::as_const(m_all)) {
+        if (matches(row))
+            m_rows.append(row);
+    }
     endResetModel();
+    emit countChanged();
 }
 
 void EventController::loadFromDatabase()
@@ -100,7 +178,7 @@ void EventController::loadFromDatabase()
             severity = QStringLiteral("normal");
         }
 
-        m_rows.append({
+        m_all.append({
             timeStr,
             query.value(1).toString(),
             query.value(2).toString(),

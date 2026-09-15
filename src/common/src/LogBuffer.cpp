@@ -55,6 +55,17 @@ void handler(QtMsgType type, const QMessageLogContext &context, const QString &m
         ? QString::fromLatin1(context.category)
         : QStringLiteral("default");
 
+    // Qt's audio back end reports one warning per unrecognised channel on
+    // every device it enumerates. On a machine with several sound devices
+    // that is a hundred records before the app has drawn a frame, which
+    // pushes the entries a clinician needs off the screen.
+    // It arrives on the default category, so the message itself is matched.
+    if (type != QtCriticalMsg && type != QtFatalMsg
+        && (category.startsWith(QLatin1String("qt.multimedia"))
+            || message.startsWith(QLatin1String("audio device has unrecognized channel")))) {
+        return;
+    }
+
     QString detail;
     if (context.file != nullptr) {
         detail = QStringLiteral("%1:%2")

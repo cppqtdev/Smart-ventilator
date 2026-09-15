@@ -47,7 +47,12 @@ Item {
     // The ring is anchored to the bottom of the item, so a caller that asks
     // for less height than the dial needs would draw the ring over whatever
     // sits above it. Layouts honour the minimum, which stops that.
-    Layout.minimumWidth: dial.implicitWidth
+    //
+    // Width is different: the ring already shrinks with the width it is
+    // given, so the minimum is the two step buttons plus the smallest ring.
+    // Asking for the full reference width here overflowed the rail, which
+    // is one pixel narrower than the dial draws at.
+    Layout.minimumWidth: Metrics.dialStepWidth * 2 + Metrics.px(56)
     Layout.minimumHeight: dial.implicitHeight
 
     function propose(delta) {

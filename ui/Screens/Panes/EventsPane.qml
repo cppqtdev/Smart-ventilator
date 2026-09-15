@@ -42,7 +42,11 @@ Item {
             Layout.fillWidth: true
             model: pane.filters
             currentIndex: pane.pageIndex
-            onActivated: function (index) { pane.pageIndex = index }
+            onActivated: function (index) {
+                pane.pageIndex = index
+                if (pane.eventData && index !== 3)
+                    pane.eventData.filter = pane.filters[index].key
+            }
         }
 
         LogPane {
@@ -60,6 +64,15 @@ Item {
             clip: true
             spacing: Metrics.px(2)
             model: pane.eventData
+
+            Text {
+                anchors.centerIn: parent
+                visible: list.count === 0
+                text: qsTr("No entries.")
+                color: Colors.textSecondary
+                font.family: Typography.monoFamily
+                font.pixelSize: Typography.readoutLabel
+            }
 
             delegate: Rectangle {
                 // EventController is a QAbstractListModel, so the delegate

@@ -495,6 +495,7 @@ void DatabaseManager::logEvent(const QString &source, const QString &description
                               Q_ARG(QString, source),
                               Q_ARG(QString, description),
                               Q_ARG(QString, status));
+    emit eventLogged(source, description, status);
 }
 
 void DatabaseManager::logAlarm(const QString &priority,

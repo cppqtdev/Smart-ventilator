@@ -26,11 +26,16 @@ Item {
         { key: "utility",  label: qsTr("Utilities") }
     ]
 
-    function reading(key) {
+    // Readings arrive as doubles, so they are rounded here. Printing one
+    // raw puts 15.200000000000001 on a clinical screen.
+    function reading(key, decimals) {
         if (!pane.ventilatorData)
             return "---"
         var value = pane.ventilatorData[key]
-        return value === undefined ? "---" : String(value)
+        if (value === undefined || value === null)
+            return "---"
+        var places = decimals === undefined ? 1 : decimals
+        return isNaN(value) ? String(value) : Number(value).toFixed(places)
     }
 
     ColumnLayout {
@@ -51,13 +56,23 @@ Item {
             visible: pane.pageIndex === 0
 
             ColumnLayout {
+                id: toolColumn
+
+                // Chips default to their label width as a minimum, which is
+                // what lets a two chip row push past the column and draw
+                // over the loop chart. Inside this column they are allowed
+                // to shrink and elide instead.
+                readonly property int chipMinimum: Metrics.px(72)
+
                 Layout.fillWidth: false
                 Layout.preferredWidth: Metrics.px(232)
+                Layout.maximumWidth: Metrics.px(232)
                 Layout.alignment: Qt.AlignTop
                 spacing: Spacing.md
 
                 ChipButton {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: toolColumn.chipMinimum
                     text: qsTr("Reference")
                     checkable: true
                 }
@@ -84,6 +99,7 @@ Item {
 
                     ChipButton {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: qsTr("Cursor 1")
                         checkable: true
@@ -93,6 +109,7 @@ Item {
 
                     ChipButton {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: qsTr("Cursor 2")
                         checkable: true
@@ -165,12 +182,14 @@ Item {
 
                     ChipButton {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: qsTr("Start/Stop")
                     }
 
                     ChipButton {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: toolColumn.chipMinimum
                         labelPadding: Spacing.xs
                         text: qsTr("Settings")
                     }
@@ -182,6 +201,7 @@ Item {
             LoopChart {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumWidth: Metrics.px(240)
             }
         }
 
