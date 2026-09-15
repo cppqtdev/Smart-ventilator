@@ -54,7 +54,7 @@ Rectangle {
             Layout.fillWidth: false
             Layout.fillHeight: true
             Layout.preferredWidth: Metrics.px(126)
-            spacing: Spacing.sm
+            spacing: Spacing.xs
 
             RowLayout {
                 Layout.fillWidth: true
@@ -62,6 +62,8 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
+                    Layout.preferredHeight: Math.round(Typography.micro * 1.3)
+                    verticalAlignment: Text.AlignVCenter
                     text: qsTr("Target")
                     color: Colors.textSecondary
                     font.family: Typography.monoFamily
@@ -69,6 +71,8 @@ Rectangle {
                 }
 
                 Text {
+                    Layout.preferredHeight: Math.round(Typography.micro * 1.3)
+                    verticalAlignment: Text.AlignVCenter
                     text: qsTr("Current")
                     color: Colors.textSecondary
                     font.family: Typography.monoFamily
@@ -76,6 +80,10 @@ Rectangle {
                 }
             }
 
+            // Five setting rows at three stacked lines each overran the
+            // panel. The unit shares the label line now, so a row costs two
+            // lines, and each line is measured off its glyph size rather
+            // than the line box Text reserves for itself.
             Repeater {
                 model: panel.rows
 
@@ -84,16 +92,36 @@ Rectangle {
 
                     required property var modelData
 
+                    readonly property int captionHeight: Math.round(Typography.micro * 1.3)
+                    readonly property int valueHeight: Math.round(Typography.readoutLabel * 1.25)
+
                     Layout.fillWidth: true
                     spacing: 0
 
-                    Text {
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: row.modelData.label
-                        color: Colors.textSecondary
-                        font.family: Typography.monoFamily
-                        font.pixelSize: Typography.micro
-                        elide: Text.ElideRight
+                        spacing: Spacing.xs
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: row.captionHeight
+                            verticalAlignment: Text.AlignVCenter
+                            text: row.modelData.label
+                            color: Colors.textSecondary
+                            font.family: Typography.monoFamily
+                            font.pixelSize: Typography.micro
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            Layout.preferredHeight: row.captionHeight
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignRight
+                            text: row.modelData.unit
+                            color: Colors.textSecondary
+                            font.family: Typography.monoFamily
+                            font.pixelSize: Typography.micro
+                        }
                     }
 
                     RowLayout {
@@ -102,6 +130,8 @@ Rectangle {
 
                         Text {
                             Layout.fillWidth: true
+                            Layout.preferredHeight: row.valueHeight
+                            verticalAlignment: Text.AlignVCenter
                             text: panel.show(row.modelData.target)
                             color: Colors.textSecondary
                             font.family: Typography.monoFamily
@@ -109,19 +139,14 @@ Rectangle {
                         }
 
                         Text {
+                            Layout.preferredHeight: row.valueHeight
+                            verticalAlignment: Text.AlignVCenter
                             text: panel.show(row.modelData.current)
                             color: Colors.textPrimary
                             font.family: Typography.monoFamily
                             font.pixelSize: Typography.readoutLabel
                             font.weight: Typography.bold
                         }
-                    }
-
-                    Text {
-                        text: row.modelData.unit
-                        color: Colors.textSecondary
-                        font.family: Typography.monoFamily
-                        font.pixelSize: Typography.micro
                     }
                 }
             }
