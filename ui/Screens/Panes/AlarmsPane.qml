@@ -109,6 +109,15 @@ Item {
           current: pane.reading("spo2"), from: 0, to: 100 }
     ]
 
+    property string logFilter: ""
+
+    readonly property var logFilters: [
+        { key: "",         label: qsTr("All") },
+        { key: "Critical", label: qsTr("Critical") },
+        { key: "Warning",  label: qsTr("Warning") },
+        { key: "Advisory", label: qsTr("Advisory") }
+    ]
+
     readonly property bool monitoringSpo2:
         pane.ventilatorData ? pane.ventilatorData.spo2Monitored : true
 
@@ -153,10 +162,50 @@ Item {
             radius: Radius.medium
             color: Colors.surface
 
-            ListView {
-                id: alarmLog
+            ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Spacing.md
+                spacing: Spacing.md
+
+                // AlarmController has carried a priority filter since it was
+                // written and nothing ever set it, so a log of every technical
+                // advisory buried the critical rows a reviewer is looking for.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Spacing.md
+
+                    Repeater {
+                        model: pane.logFilters
+
+                        delegate: ChipButton {
+                            required property var modelData
+
+                            Layout.preferredWidth: Math.max(Metrics.px(96), implicitWidth)
+                            text: modelData.label
+                            selected: pane.logFilter === modelData.key
+                            onClicked: {
+                                pane.logFilter = modelData.key
+                                if (pane.alarmData)
+                                    pane.alarmData.setFilterPriority(modelData.key)
+                            }
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Text {
+                        text: pane.alarmData
+                              ? qsTr("%1 shown").arg(pane.alarmData.alarmCount) : ""
+                        color: Colors.textSecondary
+                        font.family: Typography.monoFamily
+                        font.pixelSize: Typography.caption
+                    }
+                }
+
+                ListView {
+                    id: alarmLog
+                    Layout.fillWidth: true
+                Layout.fillHeight: true
                 clip: true
                 spacing: Spacing.xs
                 model: pane.alarmData
@@ -232,6 +281,7 @@ Item {
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.readoutLabel
                 visible: alarmLog.count === 0
+                }
             }
         }
     }

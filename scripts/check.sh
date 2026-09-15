@@ -54,6 +54,9 @@ run "the layout clamp against the layouts on offer" \
 run "one application identity across both bootstraps" \
     python3 "$root/scripts/identity_check.py"
 
+run "rows whose children cannot fit the width they are given" \
+    python3 "$root/scripts/layout_fit_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else

@@ -620,6 +620,3 @@ void AlarmController::raiseAlarm(const QString &priority,
                    true);
 }
 
-void AlarmController::acknowledgeActiveAlarm() { acknowledgeAll(); }
-void AlarmController::silenceAlarms(int durationSeconds) { pauseAudio(durationSeconds); }
-void AlarmController::cancelSilence() { resumeAudio(); }

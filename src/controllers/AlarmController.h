@@ -207,11 +207,6 @@ public:
                                 const QString &headline,
                                 const QString &detail);
     /** @deprecated Use acknowledgeAll(). */
-    Q_INVOKABLE void acknowledgeActiveAlarm();
-    /** @deprecated Use pauseAudio(). */
-    Q_INVOKABLE void silenceAlarms(int durationSeconds = 120);
-    /** @deprecated Use resumeAudio(). */
-    Q_INVOKABLE void cancelSilence();
 
     /** @brief Maps a vendor priority string onto the normalised ranking. */
     static Priority normalisePriority(const QString &priority);
