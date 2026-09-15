@@ -1,9 +1,13 @@
 #pragma once
 
+#include <sv/services/RespiratoryMechanics.h>
+
 #include <QObject>
 #include <QDateTime>
 #include <QTimer>
 #include <QVariantList>
+#include <QVariantMap>
+#include <QVector>
 
 class AlarmController;
 class DatabaseManager;
@@ -47,6 +51,10 @@ class VentilatorController : public QObject
     Q_PROPERTY(QString ventilationTime READ ventilationTime NOTIFY measurementsChanged)
     Q_PROPERTY(QString lastCommandMessage READ lastCommandMessage NOTIFY commandMessageChanged)
     Q_PROPERTY(QString operatorId READ operatorId WRITE setOperatorId NOTIFY operatorChanged)
+    Q_PROPERTY(bool patientAccepted READ patientAccepted NOTIFY patientContextChanged)
+    Q_PROPERTY(bool preUseCheckPassed READ preUseCheckPassed NOTIFY readinessChanged)
+    Q_PROPERTY(bool readyToVentilate READ readyToVentilate NOTIFY readinessChanged)
+    Q_PROPERTY(QString readinessReason READ readinessReason NOTIFY readinessChanged)
     Q_PROPERTY(QString patientCategory READ patientCategory WRITE setPatientContext NOTIFY patientContextChanged)
     Q_PROPERTY(int patientIbwKg READ patientIbwKg WRITE setPatientIbwKg NOTIFY patientContextChanged)
     Q_PROPERTY(bool backendConnected READ backendConnected NOTIFY backendStateChanged)
@@ -73,6 +81,38 @@ class VentilatorController : public QObject
     Q_PROPERTY(QVariantList flowWaveform READ flowWaveform NOTIFY waveformChanged)
     Q_PROPERTY(QVariantList volumeWaveform READ volumeWaveform NOTIFY waveformChanged)
     Q_PROPERTY(QVariantList co2Waveform READ co2Waveform NOTIFY waveformChanged)
+
+    // -- Mode identity, read from the declarative mode catalogue ----------
+    Q_PROPERTY(QString modeDescription READ modeDescription NOTIFY settingsChanged)
+    Q_PROPERTY(bool nonInvasive READ nonInvasive NOTIFY settingsChanged)
+
+    // -- Measured inputs the mechanics engine needs -----------------------
+    Q_PROPERTY(double vti READ vti NOTIFY measurementsChanged)
+    Q_PROPERTY(double totalPeep READ totalPeep NOTIFY measurementsChanged)
+    Q_PROPERTY(double peakInspiratoryFlow READ peakInspiratoryFlow NOTIFY measurementsChanged)
+    Q_PROPERTY(double peakExpiratoryFlow READ peakExpiratoryFlow NOTIFY measurementsChanged)
+    Q_PROPERTY(double spontaneousRate READ spontaneousRate NOTIFY measurementsChanged)
+    Q_PROPERTY(bool squareFlow READ squareFlow NOTIFY measurementsChanged)
+    Q_PROPERTY(bool passivePatient READ passivePatient NOTIFY measurementsChanged)
+    Q_PROPERTY(bool plateauValid READ plateauValid NOTIFY measurementsChanged)
+    Q_PROPERTY(bool totalPeepValid READ totalPeepValid NOTIFY measurementsChanged)
+
+    /// True while a hold manoeuvre is running. A property, not just an
+    /// invokable, so the manoeuvre buttons actually disable during one.
+    Q_PROPERTY(bool holdInProgress READ holdInProgress NOTIFY measurementsChanged)
+
+    Q_PROPERTY(bool oxygenBoostActive READ oxygenBoostActive NOTIFY manoeuvreChanged)
+    Q_PROPERTY(int oxygenBoostRemaining READ oxygenBoostRemaining NOTIFY manoeuvreChanged)
+    Q_PROPERTY(bool nebuliserActive READ nebuliserActive NOTIFY manoeuvreChanged)
+    Q_PROPERTY(int nebuliserRemaining READ nebuliserRemaining NOTIFY manoeuvreChanged)
+
+    /**
+     * Every derived respiratory-mechanics quantity, keyed by name. Each entry
+     * is a map of { value, valid, reason, manoeuvre, age } - the validity
+     * travels with the number so a screen cannot display an invalid
+     * measurement by forgetting to check a separate flag.
+     */
+    Q_PROPERTY(QVariantMap mechanics READ mechanics NOTIFY measurementsChanged)
 
 public:
     /**
@@ -176,6 +216,41 @@ public:
     /** @return Rolling CO2 waveform sample buffer. */
     QVariantList co2Waveform() const;
 
+    QString modeDescription() const;
+    bool nonInvasive() const;
+
+    double vti() const;
+    double totalPeep() const;
+    double peakInspiratoryFlow() const;
+    double peakExpiratoryFlow() const;
+    double spontaneousRate() const;
+    bool squareFlow() const;
+    bool passivePatient() const;
+    bool plateauValid() const;
+    bool totalPeepValid() const;
+
+    /** @return All derived mechanics, each with its validity. */
+    QVariantMap mechanics() const;
+
+    /**
+     * @brief Performs an inspiratory hold to measure plateau pressure.
+     *
+     * Static compliance, airway resistance and driving pressure all need a
+     * plateau and are reported as unmeasurable until this runs.
+     */
+    Q_INVOKABLE void performInspiratoryHold(int milliseconds = 1500);
+
+    /**
+     * @brief Performs an expiratory hold to measure total PEEP.
+     *
+     * Auto-PEEP is the difference between the result and the set PEEP. The
+     * measurement is invalid if the patient makes an effort during the hold.
+     */
+    Q_INVOKABLE void performExpiratoryHold(int milliseconds = 2000);
+
+    /** @return True while a hold manoeuvre is in progress. */
+    bool holdInProgress() const;
+
     /** @brief Starts the ventilator simulation loop. */
     Q_INVOKABLE void startVentilation();
     /** @brief Validates and starts ventilation through the safe command path. */
@@ -197,11 +272,124 @@ public:
     Q_INVOKABLE bool requestAlarmLimitChange(const QString &limit, int value);
     /** @brief Validated operator command for changing ventilation mode. */
     Q_INVOKABLE bool requestModeChange(const QString &mode);
+
+    /** @return True when this build can actually deliver the mode. */
+    Q_INVOKABLE bool isModeSupported(const QString &mode) const;
+
+    bool patientAccepted() const;
+    bool preUseCheckPassed() const;
+    bool readyToVentilate() const;
+    QString readinessReason() const;
+
+    /**
+     * @brief Records that a patient has been admitted at this bedside.
+     *
+     * Ventilation cannot start before this. Real devices ask the same
+     * question, because the patient category decides every safe range and a
+     * carried-over category from the previous patient is a hazard.
+     */
+    Q_INVOKABLE void acceptPatient(const QString &category, int ibwKg);
+
+    /** @brief Clears the admitted patient, which returns the device to standby. */
+    Q_INVOKABLE void dischargePatient();
+
+    /** @brief Records the outcome of the pre-use check. */
+    Q_INVOKABLE void setPreUseCheckPassed(bool passed);
+
+    /**
+     * @brief Starts without a passing pre-use check, for an emergency.
+     *
+     * The reason is mandatory and is written to the audit trail, because a
+     * device that can be started unchecked silently is a device that is
+     * always started unchecked.
+     */
+    Q_INVOKABLE bool overridePreUseCheck(const QString &reason);
     /** @brief Validated operator command for enabling/disabling apnea backup. */
     Q_INVOKABLE bool requestApneaBackupChange(bool enabled);
+
+    bool oxygenBoostActive() const;
+    int oxygenBoostRemaining() const;
+    bool nebuliserActive() const;
+    int nebuliserRemaining() const;
+
+    /**
+     * @brief Delivers one mandatory breath immediately.
+     *
+     * Refused while a hold manoeuvre is running, because the valves are shut.
+     */
+    Q_INVOKABLE bool deliverManualBreath();
+
+    /**
+     * @brief Raises FiO2 to 100 percent for a fixed interval.
+     *
+     * The pre-suction oxygenation control. The previous setting is restored
+     * when the interval ends, so a forgotten boost cannot leave the patient
+     * on pure oxygen.
+     */
+    Q_INVOKABLE bool startOxygenBoost(int seconds = 120);
+
+    /** @brief Ends the oxygen boost early and restores the FiO2 setting. */
+    Q_INVOKABLE void cancelOxygenBoost();
+
+    /** @brief Runs the nebuliser for a fixed number of minutes. */
+    Q_INVOKABLE bool startNebuliser(int minutes = 10);
+
+    /** @brief Stops the nebuliser early. */
+    Q_INVOKABLE void cancelNebuliser();
+
     /** @brief Simulated future hardware heartbeat. */
     Q_INVOKABLE void recordHardwareHeartbeat();
     /** @brief Simulates hardware link loss/recovery for demo and tests. */
+    /**
+     * @brief Sets the patient category and ideal body weight in one step.
+     *
+     * Setting them separately leaves the controller holding a category and a
+     * weight that do not belong together for one call, and every range
+     * derived from the pair is wrong for that moment.
+     */
+    Q_INVOKABLE void setPatientProfile(const QString &category, int ibwKg);
+
+    /**
+     * @brief Declares that telemetry comes from real hardware.
+     *
+     * The heartbeat watchdog only runs when it does. On the internal
+     * simulator the application would be watching its own pulse, and would
+     * raise a disconnect alarm against itself.
+     */
+    Q_INVOKABLE void setHardwareBackend(bool hardware);
+
+    /**
+     * @brief Applies one decoded frame from the device.
+     *
+     * Keys are the signal names in sv/transport/ITelemetrySource.h. Only the
+     * keys present are written, because each frame carries its own subset.
+     * While a hardware backend is attached these values replace the internal
+     * model rather than being blended with it: two sources for one number is
+     * how a display comes to disagree with the device.
+     */
+    Q_INVOKABLE void applyTelemetry(const QVariantMap &values);
+
+    /**
+     * @brief Follows the device into or out of ventilation.
+     *
+     * The device is a separate processor and keeps ventilating when this
+     * interface restarts. On reattaching it must adopt what the device is
+     * already doing, never command it to match a freshly initialised
+     * interface: a restarted screen must not stop a running therapy.
+     */
+    void adoptDeviceState(bool deviceVentilating);
+
+    /**
+     * @brief Reloads the bedside session written by the previous run.
+     *
+     * Covers the case where this interface restarts and there is no device
+     * link to ask: the admitted patient, the category and the pre-use check
+     * come back, so a crash does not present the operator with an empty
+     * standby screen and a patient still on the circuit. A device link, when
+     * there is one, overrides this through adoptDeviceState().
+     */
+    Q_INVOKABLE void restoreSession();
+
     Q_INVOKABLE void setBackendConnected(bool connected);
 
 public slots:
@@ -240,15 +428,21 @@ signals:
     void frozenChanged();
     void settingsChanged();
     void measurementsChanged();
+    void manoeuvreChanged();
     void waveformChanged();
     void commandMessageChanged();
     void commandRejected(const QString &message);
     void operatorChanged();
     void patientContextChanged();
+    void readinessChanged();
     void backendStateChanged();
 
 private slots:
     void updateSimulation();
+    /// Pulls tidal volume and rate into the current category's safe envelope.
+    /// Selecting a neonate must not leave adult settings loaded.
+    void reseedForPatientCategory();
+
     void checkBackendHeartbeat();
 
 private:
@@ -265,9 +459,14 @@ private:
     int categoryMaxVt() const;
     int categoryMinRr() const;
     int categoryMaxRr() const;
+
+    /// Raw ceilings before they are reconciled with the floor.
+    int categoryCeilingVt() const;
+    int categoryCeilingRr() const;
     void setCommandMessage(const QString &message);
     void setDegradedMode(bool degraded, const QString &state);
     void logSettingChange(const QString &parameter, const QVariant &oldValue, const QVariant &newValue);
+    void saveSession();
 
     DatabaseManager *m_database = nullptr;
     AlarmController *m_alarmController = nullptr;
@@ -275,11 +474,15 @@ private:
     bool m_running = false;
     bool m_frozen = false;
     bool m_backendConnected = true;
+    bool m_hardwareBackend = false;
     bool m_degradedMode = false;
     QString m_mode = QStringLiteral("ASV");
     QString m_lastCommandMessage;
     QString m_operatorId = QStringLiteral("unauthenticated");
     QString m_patientCategory = QStringLiteral("Adult");
+    bool m_patientAccepted = false;
+    bool m_preUseCheckPassed = false;
+    bool m_preUseCheckOverridden = false;
     QString m_backendState = QStringLiteral("Simulator connected");
     QDateTime m_lastHardwareHeartbeatUtc;
     int m_fio2 = 60;
@@ -322,6 +525,30 @@ private:
     int m_ventilationSeconds = 0;
     QTimer m_ventilationTimer;
     QTimer m_backendWatchdogTimer;
+    // Respiratory mechanics engine and the breath it last consumed.
+    sv::services::RespiratoryMechanics m_mechanics;
+    sv::services::BreathSample m_breath;
+    QTimer m_holdTimer;
+    bool m_holdInProgress = false;
+
+    QTimer m_oxygenBoostTimer;
+    QTimer m_nebuliserTimer;
+    int m_fio2BeforeBoost = 0;
+    bool m_holdIsInspiratory = false;
+    double m_vti = 0;
+    double m_totalPeep = 0;
+    double m_peakInspFlow = 0;
+    double m_peakExpFlow = 0;
+    double m_spontaneousRate = 0;
+    bool m_squareFlow = false;
+    bool m_passivePatient = true;
+    bool m_plateauValid = false;
+    bool m_totalPeepValid = false;
+    double m_breathPeakFlow = 0;
+    double m_breathMinFlow = 0;
+    double m_breathPhase = 0;
+    QVector<double> m_inspiratoryPressures;
+
     QVariantList m_pressureWaveform;
     QVariantList m_flowWaveform;
     QVariantList m_volumeWaveform;

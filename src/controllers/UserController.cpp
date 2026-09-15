@@ -40,7 +40,10 @@ QString UserController::hashPin(const QString &pin, const QString &salt)
 
 bool UserController::pinFormatValid(const QString &pin)
 {
-    static const QRegularExpression pattern(QStringLiteral("^\\d{6,12}$"));
+    // Four digits is the floor because the bedside screen lock is unlocked
+    // with gloves on, at the bedside, many times a shift. It guards against a
+    // stray touch, not against an attacker with the trolley to themselves.
+    static const QRegularExpression pattern(QStringLiteral("^\\d{4,12}$"));
     return pattern.match(pin).hasMatch();
 }
 
@@ -412,10 +415,27 @@ void UserController::provisionInitialAdminFromEnvironment()
         return;
     }
 
+    // Without any account the screen lock can never be opened, which locks
+    // the operator out of a running ventilator. A default bedside account is
+    // created instead, and recorded as one that has to be replaced.
     if (!bootstrapValid) {
-        m_database->logEvent(QStringLiteral("Security"),
-                             QStringLiteral("No default demo credentials created; set SMARTVENT_ADMIN_USER and SMARTVENT_ADMIN_PIN to bootstrap an admin"),
-                             QStringLiteral("ProvisioningRequired"));
+        const QString savedDefaultUser = m_currentUser;
+        const QString savedDefaultRole = m_currentRole;
+        m_currentUser = QStringLiteral("system");
+        m_currentRole = QStringLiteral("Admin");
+
+        createUser(QStringLiteral("clinician"), QStringLiteral("0000"),
+                   QStringLiteral("Clinician"), QStringLiteral("Default bedside operator"));
+
+        m_currentUser = savedDefaultUser;
+        m_currentRole = savedDefaultRole;
+
+        m_database->logEvent(
+            QStringLiteral("Security"),
+            QStringLiteral("Default bedside operator 'clinician' created with a default "
+                           "number; change it before clinical use, or set "
+                           "SMARTVENT_ADMIN_USER and SMARTVENT_ADMIN_PIN"),
+            QStringLiteral("ProvisioningRequired"));
         return;
     }
 

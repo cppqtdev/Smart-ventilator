@@ -1,10 +1,14 @@
 #include "VentilatorController.h"
 
 #include "AlarmController.h"
+#include <sv/domain/ModeCatalog.h>
 #include "src/core/DatabaseManager.h"
 
 #include <QtMath>
 #include <QSet>
+
+#include <algorithm>
+#include <cmath>
 
 namespace {
 double clampDouble(double value, double low, double high)
@@ -27,6 +31,41 @@ VentilatorController::VentilatorController(DatabaseManager *database,
     connect(&m_ventilationTimer, &QTimer::timeout, this, [this]() {
         ++m_ventilationSeconds;
         emit measurementsChanged();
+    });
+
+    // A hold manoeuvre closes the valves for a fixed interval and then latches
+    // the settled pressure. Until one runs, every hold-derived quantity -
+    // static compliance, resistance, driving pressure, auto-PEEP - reports
+    // itself as unmeasurable rather than showing a stale or invented number.
+    m_holdTimer.setSingleShot(true);
+    connect(&m_holdTimer, &QTimer::timeout, this, [this]() {
+        if (m_holdIsInspiratory) {
+            m_plateauValid = true;
+            m_mechanics.markInspiratoryHold();
+            setCommandMessage(QStringLiteral("Plateau pressure captured"));
+        } else {
+            m_totalPeepValid = true;
+            m_mechanics.markExpiratoryHold();
+            setCommandMessage(QStringLiteral("Total PEEP captured"));
+        }
+        m_holdInProgress = false;
+        emit measurementsChanged();
+    });
+
+    // Both timed manoeuvres restore the setting they changed when they end,
+    // so a forgotten boost cannot leave the patient on pure oxygen.
+    m_oxygenBoostTimer.setSingleShot(true);
+    connect(&m_oxygenBoostTimer, &QTimer::timeout, this, [this]() {
+        m_fio2 = m_fio2BeforeBoost > 0 ? m_fio2BeforeBoost : m_fio2;
+        setCommandMessage(QStringLiteral("Oxygen boost ended"));
+        emit settingsChanged();
+        emit manoeuvreChanged();
+    });
+
+    m_nebuliserTimer.setSingleShot(true);
+    connect(&m_nebuliserTimer, &QTimer::timeout, this, [this]() {
+        setCommandMessage(QStringLiteral("Nebuliser finished"));
+        emit manoeuvreChanged();
     });
 
     m_lastHardwareHeartbeatUtc = QDateTime::currentDateTimeUtc();
@@ -67,7 +106,6 @@ double VentilatorController::drivingPressure() const
 
 QString VentilatorController::ieRatio() const
 {
-    // I:E ratio derived from inspiratory time and respiratory rate.
     double totalCycle = 60.0 / qMax(1, m_respiratoryRate);
     double insp = qMax(0.3, static_cast<double>(m_inspiratoryTime));
     double exp = totalCycle - insp;
@@ -113,6 +151,251 @@ QVariantList VentilatorController::flowWaveform() const { return m_flowWaveform;
 QVariantList VentilatorController::volumeWaveform() const { return m_volumeWaveform; }
 QVariantList VentilatorController::co2Waveform() const { return m_co2Waveform; }
 
+// ---------------------------------------------------------------------------
+//  Mode identity, read from the declarative catalogue rather than duplicated
+// ---------------------------------------------------------------------------
+
+QString VentilatorController::modeDescription() const
+{
+    return sv::domain::ModeCatalog::findOrDefault(m_mode).description;
+}
+
+bool VentilatorController::nonInvasive() const
+{
+    return sv::domain::ModeCatalog::findOrDefault(m_mode).nonInvasive;
+}
+
+// ---------------------------------------------------------------------------
+//  Measured inputs to the mechanics engine
+// ---------------------------------------------------------------------------
+
+double VentilatorController::vti() const { return m_vti; }
+double VentilatorController::totalPeep() const { return m_totalPeep; }
+double VentilatorController::peakInspiratoryFlow() const { return m_peakInspFlow; }
+double VentilatorController::peakExpiratoryFlow() const { return m_peakExpFlow; }
+double VentilatorController::spontaneousRate() const { return m_spontaneousRate; }
+bool VentilatorController::squareFlow() const { return m_squareFlow; }
+bool VentilatorController::passivePatient() const { return m_passivePatient; }
+bool VentilatorController::plateauValid() const { return m_plateauValid; }
+bool VentilatorController::totalPeepValid() const { return m_totalPeepValid; }
+
+bool VentilatorController::holdInProgress() const { return m_holdInProgress; }
+
+void VentilatorController::performInspiratoryHold(int milliseconds)
+{
+    // HARDWARE: this must close both the inspiratory and expiratory valves and
+    // hold them shut for the requested interval, then sample the settled
+    // airway pressure as the plateau.
+    if (!m_running || m_holdInProgress)
+        return;
+    m_holdInProgress = true;
+    m_holdIsInspiratory = true;
+    setCommandMessage(QStringLiteral("Inspiratory hold in progress"));
+
+    m_holdTimer.setSingleShot(true);
+    m_holdTimer.start(qBound(300, milliseconds, 5000));
+    emit measurementsChanged();
+}
+
+void VentilatorController::performExpiratoryHold(int milliseconds)
+{
+    // HARDWARE: hold at end-expiration until flow reaches zero, then read the
+    // settled pressure as PEEPtot. Abort and discard if the patient triggers.
+    if (!m_running || m_holdInProgress)
+        return;
+    m_holdInProgress = true;
+    m_holdIsInspiratory = false;
+    setCommandMessage(QStringLiteral("Expiratory hold in progress"));
+
+    m_holdTimer.setSingleShot(true);
+    m_holdTimer.start(qBound(300, milliseconds, 5000));
+    emit measurementsChanged();
+}
+
+bool VentilatorController::oxygenBoostActive() const
+{
+    return m_oxygenBoostTimer.isActive();
+}
+
+int VentilatorController::oxygenBoostRemaining() const
+{
+    return m_oxygenBoostTimer.isActive()
+        ? (m_oxygenBoostTimer.remainingTime() + 999) / 1000 : 0;
+}
+
+bool VentilatorController::nebuliserActive() const
+{
+    return m_nebuliserTimer.isActive();
+}
+
+int VentilatorController::nebuliserRemaining() const
+{
+    return m_nebuliserTimer.isActive()
+        ? (m_nebuliserTimer.remainingTime() + 999) / 1000 : 0;
+}
+
+bool VentilatorController::deliverManualBreath()
+{
+    // HARDWARE: this must queue one mandatory breath at the current settings
+    // for delivery at the start of the next expiratory phase.
+    if (!m_running) {
+        const QString message = QStringLiteral("Manual breath needs ventilation running");
+        setCommandMessage(message);
+        emit commandRejected(message);
+        return false;
+    }
+    if (m_holdInProgress) {
+        const QString message = QStringLiteral("Manual breath refused during a hold");
+        setCommandMessage(message);
+        emit commandRejected(message);
+        return false;
+    }
+
+    // Restarting the breath cycle at inspiration is what a manual breath is.
+    m_phase = 0.0;
+    setCommandMessage(QStringLiteral("Manual breath delivered"));
+    logSettingChange(QStringLiteral("Manual breath"), QString(), QString());
+    return true;
+}
+
+bool VentilatorController::startOxygenBoost(int seconds)
+{
+    if (!m_running) {
+        const QString message = QStringLiteral("Oxygen boost needs ventilation running");
+        setCommandMessage(message);
+        emit commandRejected(message);
+        return false;
+    }
+    if (m_oxygenBoostTimer.isActive())
+        return true;
+
+    m_fio2BeforeBoost = m_fio2;
+    m_fio2 = 100;
+
+    m_oxygenBoostTimer.setSingleShot(true);
+    m_oxygenBoostTimer.start(qBound(30, seconds, 300) * 1000);
+
+    setCommandMessage(QStringLiteral("100 percent oxygen for %1 s").arg(oxygenBoostRemaining()));
+    logSettingChange(QStringLiteral("Oxygen boost"),
+                     QString::number(m_fio2BeforeBoost), QStringLiteral("100"));
+    emit settingsChanged();
+    emit manoeuvreChanged();
+    return true;
+}
+
+void VentilatorController::cancelOxygenBoost()
+{
+    if (!m_oxygenBoostTimer.isActive())
+        return;
+    m_oxygenBoostTimer.stop();
+    m_fio2 = m_fio2BeforeBoost > 0 ? m_fio2BeforeBoost : m_fio2;
+    setCommandMessage(QStringLiteral("Oxygen boost ended"));
+    emit settingsChanged();
+    emit manoeuvreChanged();
+}
+
+bool VentilatorController::startNebuliser(int minutes)
+{
+    // HARDWARE: drives the nebuliser output. On a device that entrains gas
+    // this also has to correct the delivered volume for the added flow.
+    if (!m_running) {
+        const QString message = QStringLiteral("Nebuliser needs ventilation running");
+        setCommandMessage(message);
+        emit commandRejected(message);
+        return false;
+    }
+    if (m_nebuliserTimer.isActive())
+        return true;
+
+    m_nebuliserTimer.setSingleShot(true);
+    m_nebuliserTimer.start(qBound(1, minutes, 60) * 60 * 1000);
+
+    setCommandMessage(QStringLiteral("Nebuliser running"));
+    logSettingChange(QStringLiteral("Nebuliser"), QStringLiteral("off"),
+                     QStringLiteral("%1 min").arg(qBound(1, minutes, 60)));
+    emit manoeuvreChanged();
+    return true;
+}
+
+void VentilatorController::cancelNebuliser()
+{
+    if (!m_nebuliserTimer.isActive())
+        return;
+    m_nebuliserTimer.stop();
+    setCommandMessage(QStringLiteral("Nebuliser stopped"));
+    emit manoeuvreChanged();
+}
+
+QVariantMap VentilatorController::mechanics() const
+{
+    using namespace sv::services;
+
+    const sv::domain::ModeDefinition &mode =
+        sv::domain::ModeCatalog::findOrDefault(m_mode);
+
+    auto pack = [](const Measurement &m, const QString &unit, int decimals) {
+        return QVariantMap{
+            {QStringLiteral("value"), m.value},
+            {QStringLiteral("text"), m.isValid()
+                ? QString::number(m.value, 'f', decimals)
+                : QStringLiteral("--")},
+            {QStringLiteral("valid"), m.isValid()},
+            {QStringLiteral("reason"), describeValidity(m.validity)},
+            // Short form for the tile itself; "reason" is the tooltip text.
+            {QStringLiteral("hint"), describeValidityShort(m.validity)},
+            {QStringLiteral("unit"), unit},
+            {QStringLiteral("manoeuvre"), m.manoeuvreDerived},
+            {QStringLiteral("age"), m.ageSeconds}
+        };
+    };
+
+    QVariantMap out;
+    out.insert(QStringLiteral("cdyn"),
+               pack(m_mechanics.dynamicCompliance(m_breath), QStringLiteral("mL/cmH2O"), 1));
+    out.insert(QStringLiteral("cstat"),
+               pack(m_mechanics.staticCompliance(m_breath), QStringLiteral("mL/cmH2O"), 1));
+    out.insert(QStringLiteral("elastance"),
+               pack(m_mechanics.elastance(m_breath), QStringLiteral("cmH2O/L"), 1));
+    out.insert(QStringLiteral("rinsp"),
+               pack(m_mechanics.inspiratoryResistance(m_breath), QStringLiteral("cmH2O/L/s"), 1));
+    out.insert(QStringLiteral("rexp"),
+               pack(m_mechanics.expiratoryResistance(m_breath), QStringLiteral("cmH2O/L/s"), 1));
+    out.insert(QStringLiteral("rcexp"),
+               pack(m_mechanics.timeConstant(m_breath), QStringLiteral("s"), 2));
+    out.insert(QStringLiteral("autoPeep"),
+               pack(m_mechanics.autoPeep(m_breath), QStringLiteral("cmH2O"), 1));
+    out.insert(QStringLiteral("leakPercent"),
+               pack(m_mechanics.leakPercent(m_breath), QStringLiteral("%"), 0));
+    out.insert(QStringLiteral("leakFlow"),
+               pack(m_mechanics.leakFlow(m_breath), QStringLiteral("L/min"), 1));
+    out.insert(QStringLiteral("vtCompensated"),
+               pack(m_mechanics.compensatedTidalVolume(m_breath, mode.nonInvasive),
+                    QStringLiteral("mL"), 0));
+    out.insert(QStringLiteral("drivingPressure"),
+               pack(m_mechanics.drivingPressure(m_breath), QStringLiteral("cmH2O"), 1));
+    out.insert(QStringLiteral("mechanicalPower"),
+               pack(m_mechanics.mechanicalPower(m_breath, mode.controlVariable),
+                    QStringLiteral("J/min"), 1));
+    out.insert(QStringLiteral("stressIndex"),
+               pack(m_mechanics.stressIndex(m_inspiratoryPressures,
+                                            m_sampleTimer.interval() / 1000.0, m_breath),
+                    QString(), 2));
+    out.insert(QStringLiteral("rsbi"),
+               pack(m_mechanics.rapidShallowBreathingIndex(m_breath, m_pressureSupport),
+                    QStringLiteral("1/min/L"), 0));
+    out.insert(QStringLiteral("wobVent"),
+               pack(m_mechanics.ventilatorWorkOfBreathing(m_breath), QStringLiteral("J/L"), 2));
+    out.insert(QStringLiteral("vtPerKg"),
+               pack(m_mechanics.tidalVolumePerKg(m_breath, m_patientIbwKg),
+                    QStringLiteral("mL/kg"), 1));
+    out.insert(QStringLiteral("mve"),
+               pack(m_mechanics.expiredMinuteVolume(m_breath), QStringLiteral("L/min"), 1));
+    out.insert(QStringLiteral("fspont"),
+               pack(m_mechanics.spontaneousFraction(m_breath), QStringLiteral(""), 2));
+    return out;
+}
+
+
 void VentilatorController::startVentilation()
 {
     QString reason;
@@ -135,6 +418,7 @@ void VentilatorController::startVentilation()
     m_ventilationTimer.start();
     if (m_database)
         m_database->logEvent(QStringLiteral("Ventilation"), QStringLiteral("Ventilation started"), QStringLiteral("Active"));
+    saveSession();
     emit runningChanged();
 }
 
@@ -147,6 +431,12 @@ bool VentilatorController::requestStartVentilation()
         return false;
     }
     startVentilation();
+    if (!m_running) {
+        const QString message = QStringLiteral("Ventilation did not start");
+        setCommandMessage(message);
+        emit commandRejected(message);
+        return false;
+    }
     setCommandMessage(QStringLiteral("Ventilation started"));
     return true;
 }
@@ -158,6 +448,8 @@ void VentilatorController::stopVentilation()
     m_running = false;
     m_sampleTimer.stop();
     m_ventilationTimer.stop();
+    cancelOxygenBoost();
+    cancelNebuliser();
     m_pressureWaveform.clear();
     m_flowWaveform.clear();
     m_volumeWaveform.clear();
@@ -168,6 +460,7 @@ void VentilatorController::stopVentilation()
     m_patientDisconnected = false; m_circuitOcclusion = false;
     if (m_database)
         m_database->logEvent(QStringLiteral("Ventilation"), QStringLiteral("Ventilation stopped"), QStringLiteral("Standby"));
+    saveSession();
     emit runningChanged();
     emit measurementsChanged();
     emit waveformChanged();
@@ -184,6 +477,24 @@ void VentilatorController::setOperatorId(const QString &operatorId)
     emit operatorChanged();
 }
 
+void VentilatorController::setPatientProfile(const QString &category, int ibwKg)
+{
+    const QString normalized = category.trimmed().isEmpty()
+        ? QStringLiteral("Adult")
+        : category.trimmed();
+    const int bounded = qBound(1, ibwKg, 180);
+
+    if (m_patientCategory == normalized && m_patientIbwKg == bounded)
+        return;
+
+    m_patientCategory = normalized;
+    m_patientIbwKg = bounded;
+    reseedForPatientCategory();
+    setCommandMessage(QStringLiteral("Patient set to %1, %2 kg")
+                          .arg(normalized).arg(bounded));
+    emit patientContextChanged();
+}
+
 void VentilatorController::setPatientContext(const QString &category)
 {
     const QString normalized = category.trimmed().isEmpty()
@@ -192,6 +503,7 @@ void VentilatorController::setPatientContext(const QString &category)
     if (m_patientCategory == normalized)
         return;
     m_patientCategory = normalized;
+    reseedForPatientCategory();
     setCommandMessage(QStringLiteral("Patient category set to %1").arg(normalized));
     emit patientContextChanged();
 }
@@ -202,6 +514,7 @@ void VentilatorController::setPatientIbwKg(int ibwKg)
     if (m_patientIbwKg == ibwKg)
         return;
     m_patientIbwKg = ibwKg;
+    reseedForPatientCategory();
     emit patientContextChanged();
 }
 
@@ -395,7 +708,7 @@ bool VentilatorController::applyParameterChange(const QString &parameter, int va
     }
 
     const int requested = value;
-    value = qBound(low, value, high);
+    value = qBound(qMin(low, high), value, qMax(low, high));
     if (requested != value) {
         const QString message = QStringLiteral("%1 limited to %2 %3").arg(label).arg(value).arg(unit);
         setCommandMessage(message);
@@ -452,7 +765,7 @@ bool VentilatorController::applyAlarmLimitChange(const QString &limit, int value
     }
 
     const int requested = value;
-    value = qBound(low, value, high);
+    value = qBound(qMin(low, high), value, qMax(low, high));
     if (requested != value) {
         const QString message = QStringLiteral("%1 limited to %2 %3").arg(label).arg(value).arg(unit);
         setCommandMessage(message);
@@ -472,6 +785,11 @@ bool VentilatorController::applyAlarmLimitChange(const QString &limit, int value
     return true;
 }
 
+bool VentilatorController::isModeSupported(const QString &mode) const
+{
+    return validateMode(mode, nullptr);
+}
+
 bool VentilatorController::validateMode(const QString &mode, QString *reason) const
 {
     static const QSet<QString> supportedModes = {
@@ -487,8 +805,108 @@ bool VentilatorController::validateMode(const QString &mode, QString *reason) co
     return true;
 }
 
+bool VentilatorController::patientAccepted() const
+{
+    return m_patientAccepted;
+}
+
+bool VentilatorController::preUseCheckPassed() const
+{
+    return m_preUseCheckPassed || m_preUseCheckOverridden;
+}
+
+bool VentilatorController::readyToVentilate() const
+{
+    return readinessReason().isEmpty();
+}
+
+QString VentilatorController::readinessReason() const
+{
+    if (!m_patientAccepted)
+        return tr("Admit a patient before starting");
+    if (!preUseCheckPassed())
+        return tr("Run the pre-use check before starting");
+    QString reason;
+    if (!validateStart(&reason))
+        return reason;
+    return {};
+}
+
+void VentilatorController::acceptPatient(const QString &category, int ibwKg)
+{
+    setPatientProfile(category, ibwKg);
+    m_patientAccepted = true;
+
+    // A new patient invalidates the previous check: the circuit was changed.
+    m_preUseCheckPassed = false;
+    m_preUseCheckOverridden = false;
+
+    if (m_database) {
+        m_database->logEvent(QStringLiteral("Patient"),
+                             QStringLiteral("Patient admitted"),
+                             QStringLiteral("%1, %2 kg").arg(category).arg(ibwKg));
+    }
+    saveSession();
+    emit patientContextChanged();
+    emit readinessChanged();
+}
+
+void VentilatorController::dischargePatient()
+{
+    stopVentilation();
+    m_patientAccepted = false;
+    m_preUseCheckPassed = false;
+    m_preUseCheckOverridden = false;
+
+    if (m_database) {
+        m_database->logEvent(QStringLiteral("Patient"),
+                             QStringLiteral("Patient discharged"),
+                             QStringLiteral("Standby"));
+    }
+    saveSession();
+    emit patientContextChanged();
+    emit readinessChanged();
+}
+
+void VentilatorController::setPreUseCheckPassed(bool passed)
+{
+    if (m_preUseCheckPassed == passed)
+        return;
+    m_preUseCheckPassed = passed;
+    if (passed)
+        m_preUseCheckOverridden = false;
+    emit readinessChanged();
+}
+
+bool VentilatorController::overridePreUseCheck(const QString &reason)
+{
+    if (reason.trimmed().isEmpty())
+        return false;
+
+    m_preUseCheckOverridden = true;
+    logSettingChange(QStringLiteral("Pre-use check overridden"),
+                     QStringLiteral("not run"), reason.trimmed());
+    if (m_database) {
+        m_database->logEvent(QStringLiteral("Safety"),
+                             QStringLiteral("Pre-use check overridden"),
+                             reason.trimmed());
+    }
+    emit readinessChanged();
+    return true;
+}
+
 bool VentilatorController::validateStart(QString *reason) const
 {
+    if (!m_patientAccepted) {
+        if (reason)
+            *reason = tr("Cannot start: no patient has been admitted");
+        return false;
+    }
+    if (!preUseCheckPassed()) {
+        if (reason)
+            *reason = tr("Cannot start: the pre-use check has not passed");
+        return false;
+    }
     if (m_degradedMode) {
         if (reason)
             *reason = QStringLiteral("Cannot start: backend communication is degraded");
@@ -564,20 +982,32 @@ bool VentilatorController::validateSettingEnvelope(const QString &parameter, int
 
 int VentilatorController::categoryMinVt() const
 {
+    // Floor and ceiling are computed from different terms, so a category and
+    // a body weight that do not belong together - a neonatal category still
+    // carrying the adult default weight, for one tick during start-up - used
+    // to produce a floor above the ceiling. Every consumer of these bounds
+    // then had an inverted range, and qBound asserts on one.
+    const int byWeight = m_patientIbwKg * (m_patientCategory == QStringLiteral("Pediatric") ? 5 : 4);
+    int floorMl = 150;
     if (m_patientCategory == QStringLiteral("Neonatal"))
-        return qMax(10, m_patientIbwKg * 4);
+        floorMl = 10;
+    else if (m_patientCategory == QStringLiteral("Pediatric"))
+        floorMl = 30;
+    return qMin(qMax(floorMl, byWeight), categoryCeilingVt());
+}
+
+int VentilatorController::categoryCeilingVt() const
+{
+    if (m_patientCategory == QStringLiteral("Neonatal"))
+        return qMin(80, qMax(12, m_patientIbwKg * 8));
     if (m_patientCategory == QStringLiteral("Pediatric"))
-        return qMax(30, m_patientIbwKg * 5);
-    return qMax(150, m_patientIbwKg * 4);
+        return qMin(500, qMax(40, m_patientIbwKg * 10));
+    return qMin(900, qMax(160, m_patientIbwKg * 10));
 }
 
 int VentilatorController::categoryMaxVt() const
 {
-    if (m_patientCategory == QStringLiteral("Neonatal"))
-        return qMin(80, m_patientIbwKg * 8);
-    if (m_patientCategory == QStringLiteral("Pediatric"))
-        return qMin(500, m_patientIbwKg * 10);
-    return qMin(900, m_patientIbwKg * 10);
+    return qMax(categoryMinVt(), categoryCeilingVt());
 }
 
 int VentilatorController::categoryMinRr() const
@@ -590,6 +1020,11 @@ int VentilatorController::categoryMinRr() const
 }
 
 int VentilatorController::categoryMaxRr() const
+{
+    return qMax(categoryMinRr(), categoryCeilingRr());
+}
+
+int VentilatorController::categoryCeilingRr() const
 {
     if (m_patientCategory == QStringLiteral("Neonatal"))
         return 80;
@@ -633,9 +1068,194 @@ void VentilatorController::logSettingChange(const QString &parameter, const QVar
                          QStringLiteral("Applied"));
 }
 
+void VentilatorController::reseedForPatientCategory()
+{
+    // Ordered defensively: qBound asserts in a debug build when the range is
+    // inverted, so the pair is sorted here rather than trusted.
+    const int minVt = qMin(categoryMinVt(), categoryMaxVt());
+    const int maxVt = qMax(categoryMinVt(), categoryMaxVt());
+    const int minRr = qMin(categoryMinRr(), categoryMaxRr());
+    const int maxRr = qMax(categoryMinRr(), categoryMaxRr());
+
+    bool changed = false;
+
+    const int vt = qBound(qMin(minVt, maxVt), m_tidalVolume, qMax(minVt, maxVt));
+    if (vt != m_tidalVolume) {
+        m_tidalVolume = vt;
+        changed = true;
+    }
+
+    const int rr = qBound(qMin(minRr, maxRr), m_respiratoryRate, qMax(minRr, maxRr));
+    if (rr != m_respiratoryRate) {
+        m_respiratoryRate = rr;
+        changed = true;
+    }
+
+    // Inspiratory time has to stay under 80 % of the cycle or validateStart
+    // refuses, and a neonatal rate makes the cycle very short. Inspiratory
+    // time is a whole number of seconds, so at high rates the rate has to
+    // come down rather than the time: 1 s needs a cycle longer than 1.25 s.
+    if (m_inspiratoryTime < 1) {
+        m_inspiratoryTime = 1;
+        changed = true;
+    }
+    const int rateCeiling = qMax(1, int(60.0 / (m_inspiratoryTime * 1.25)) - 1);
+    if (m_respiratoryRate > rateCeiling) {
+        m_respiratoryRate = qMax(minRr, rateCeiling);
+        changed = true;
+    }
+    const double cycleSeconds = 60.0 / qMax(1, m_respiratoryRate);
+    while (m_inspiratoryTime > 1 && m_inspiratoryTime >= cycleSeconds * 0.80) {
+        --m_inspiratoryTime;
+        changed = true;
+    }
+
+    if (changed)
+        emit settingsChanged();
+}
+
+void VentilatorController::applyTelemetry(const QVariantMap &values)
+{
+    recordHardwareHeartbeat();
+
+    bool measurements = false;
+    bool waveforms = false;
+
+    const auto take = [&values](const char *key, double &target, bool &flag) {
+        const auto it = values.constFind(QString::fromLatin1(key));
+        if (it == values.constEnd())
+            return;
+        target = it.value().toDouble();
+        flag = true;
+    };
+
+    take("peakPressure", m_ppeak, measurements);
+    take("plateauPressure", m_pplat, measurements);
+    take("meanPressure", m_pmean, measurements);
+    take("totalPeep", m_totalPeep, measurements);
+    take("tidalVolumeExpired", m_vte, measurements);
+    take("minuteVolume", m_expMinVol, measurements);
+    take("respiratoryRate", m_ftotal, measurements);
+    take("spo2", m_spo2, measurements);
+    take("etco2", m_etco2, measurements);
+    take("compliance", m_compliance, measurements);
+    take("resistance", m_resistance, measurements);
+
+    const auto appendIfPresent = [&](const char *key, QVariantList &buffer) {
+        const auto it = values.constFind(QString::fromLatin1(key));
+        if (it == values.constEnd())
+            return;
+        appendSample(buffer, it.value().toDouble());
+        waveforms = true;
+    };
+
+    appendIfPresent("airwayPressure", m_pressureWaveform);
+    appendIfPresent("flow", m_flowWaveform);
+    appendIfPresent("volume", m_volumeWaveform);
+    appendIfPresent("co2", m_co2Waveform);
+
+    const auto state = values.constFind(QString::fromLatin1("deviceState"));
+    if (state != values.constEnd())
+        adoptDeviceState(state.value().toInt() != 0);
+
+    if (measurements) {
+        evaluateAlarms();
+        emit measurementsChanged();
+    }
+    if (waveforms && !m_frozen)
+        emit waveformChanged();
+}
+
+void VentilatorController::saveSession()
+{
+    if (m_database == nullptr)
+        return;
+    m_database->saveClinicalState(QStringLiteral("session.patientAccepted"), m_patientAccepted);
+    m_database->saveClinicalState(QStringLiteral("session.patientCategory"), m_patientCategory);
+    m_database->saveClinicalState(QStringLiteral("session.patientIbwKg"), m_patientIbwKg);
+    m_database->saveClinicalState(QStringLiteral("session.preUseCheckPassed"), m_preUseCheckPassed);
+    m_database->saveClinicalState(QStringLiteral("session.ventilating"), m_running);
+    m_database->saveClinicalState(QStringLiteral("session.mode"), m_mode);
+}
+
+void VentilatorController::restoreSession()
+{
+    if (m_database == nullptr)
+        return;
+
+    const QVariantMap state = m_database->loadClinicalState();
+    if (state.isEmpty())
+        return;
+    if (!state.value(QStringLiteral("session.patientAccepted")).toBool())
+        return;
+
+    const QString category = state.value(QStringLiteral("session.patientCategory"),
+                                         m_patientCategory).toString();
+    const int ibw = state.value(QStringLiteral("session.patientIbwKg"), m_patientIbwKg).toInt();
+    setPatientProfile(category, ibw);
+
+    m_patientAccepted = true;
+    m_preUseCheckPassed = state.value(QStringLiteral("session.preUseCheckPassed")).toBool();
+
+    if (m_database) {
+        m_database->logEvent(
+            QStringLiteral("Session"),
+            QStringLiteral("Bedside session restored"),
+            state.value(QStringLiteral("session.ventilating")).toBool()
+                ? QStringLiteral("%1, was ventilating before the restart").arg(category)
+                : QStringLiteral("%1, was in standby").arg(category));
+    }
+
+    emit patientContextChanged();
+    emit readinessChanged();
+    emit settingsChanged();
+}
+
+void VentilatorController::adoptDeviceState(bool deviceVentilating)
+{
+    if (m_running == deviceVentilating)
+        return;
+
+    if (deviceVentilating) {
+        // Therapy is already running, so the checks that gate a start were
+        // passed before this interface restarted. Recording them as passed is
+        // how the screen stops arguing with a ventilator that is ventilating.
+        m_patientAccepted = true;
+        m_preUseCheckPassed = true;
+        m_running = true;
+        m_sampleTimer.start();
+        m_ventilationTimer.start();
+        if (m_database) {
+            m_database->logEvent(QStringLiteral("Ventilation"),
+                                 QStringLiteral("Reattached to ventilation in progress"),
+                                 QStringLiteral("Active"));
+        }
+        emit patientContextChanged();
+        emit readinessChanged();
+    } else {
+        m_running = false;
+        m_sampleTimer.stop();
+        m_ventilationTimer.stop();
+        if (m_database) {
+            m_database->logEvent(QStringLiteral("Ventilation"),
+                                 QStringLiteral("Device reports standby"),
+                                 QStringLiteral("Standby"));
+        }
+    }
+
+    emit runningChanged();
+    emit measurementsChanged();
+}
+
+void VentilatorController::setHardwareBackend(bool hardware)
+{
+    m_hardwareBackend = hardware;
+    m_lastHardwareHeartbeatUtc = QDateTime::currentDateTimeUtc();
+}
+
 void VentilatorController::checkBackendHeartbeat()
 {
-    if (!m_backendConnected)
+    if (!m_hardwareBackend || !m_backendConnected)
         return;
     if (!m_running) {
         m_lastHardwareHeartbeatUtc = QDateTime::currentDateTimeUtc();
@@ -645,7 +1265,6 @@ void VentilatorController::checkBackendHeartbeat()
     if (ageMs > 5000) {
         m_backendConnected = false;
         setDegradedMode(true, QStringLiteral("No backend heartbeat for more than 5 seconds"));
-        emit backendStateChanged();
     }
 }
 
@@ -680,7 +1299,11 @@ void VentilatorController::updateSimulation()
     if (!m_running)
         return;
 
-    recordHardwareHeartbeat();
+    // With a device attached every measurement arrives through
+    // applyTelemetry(). Running the internal model as well would put two
+    // sources behind one number.
+    if (m_hardwareBackend)
+        return;
 
     ++m_sampleIndex;
     const double dt = m_sampleTimer.interval() / 1000.0;
@@ -744,16 +1367,14 @@ void VentilatorController::updateSimulation()
         // SIMV: mandatory breaths with spontaneous between
         bool mandatoryBreath = (m_sampleIndex % 88) < 44;
         if (mandatoryBreath) {
-            // Mandatory: like PCV
-            paw = inspiration
+                    paw = inspiration
                 ? pressureTarget + effort
                 : m_peep + effort * 0.3;
             flow = inspiration
                 ? flowPeak * std::exp(-normalized * 2.5) + effort * 2.0
                 : -flowPeak * 0.55 * std::sin(M_PI * normalized) + effort;
         } else {
-            // Spontaneous: small pressure-supported breaths
-            double spont = std::sin(m_phase * M_PI * 2.0);
+                    double spont = std::sin(m_phase * M_PI * 2.0);
             paw = m_peep + m_pressureSupport * 0.3
                 + spont * 3.0 + effort * 0.4;
             flow = spont * flowPeak * 0.35 + effort * 3.0;
@@ -884,6 +1505,88 @@ void VentilatorController::updateSimulation()
     // Circuit occlusion: abnormally high pressure with near-zero flow
     m_circuitOcclusion = (m_ppeak > 55.0 && std::abs(flow) < 2.0 && m_running);
 
+    // -----------------------------------------------------------------------
+    // Populate the breath sample the mechanics engine consumes.
+    //
+    // In production these come from the flow and pressure channels on the
+    // controller board; here they are synthesised consistently with the
+    // waveform above so that the derived values behave the way the real ones
+    // will - including their invalidity when a manoeuvre has not been run.
+    // -----------------------------------------------------------------------
+
+    // Track the flow extremes and the inspiratory pressure trajectory across
+    // the breath, resetting at each cycle boundary.
+    if (m_phase < m_breathPhase) {
+        m_peakInspFlow = m_breathPeakFlow;
+        m_peakExpFlow = std::abs(m_breathMinFlow);
+        m_breathPeakFlow = 0.0;
+        m_breathMinFlow = 0.0;
+        m_inspiratoryPressures.clear();
+    }
+    m_breathPhase = m_phase;
+    m_breathPeakFlow = std::max(m_breathPeakFlow, flow);
+    m_breathMinFlow = std::min(m_breathMinFlow, flow);
+    if (inspiration && m_inspiratoryPressures.size() < 512)
+        m_inspiratoryPressures.append(paw);
+
+    // Square flow only in volume control; every pressure-targeted mode
+    // decelerates, which is what makes inspiratory resistance and the stress
+    // index invalid there.
+    m_squareFlow = (m_mode == QStringLiteral("VCV"));
+
+    // Spontaneous modes have patient effort by definition, which invalidates
+    // plateau-derived measurements.
+    const sv::domain::ModeDefinition &activeMode =
+        sv::domain::ModeCatalog::findOrDefault(m_mode);
+    m_passivePatient =
+        activeMode.controlVariable != sv::domain::ControlVariable::Spontaneous
+        && activeMode.sequence != sv::domain::BreathSequence::ContinuousSpontaneous;
+
+    m_spontaneousRate = m_passivePatient
+        ? 0.0
+        : clampDouble(m_ftotal * 0.8 + std::sin(m_sampleIndex * 0.009) * 1.5, 0, 60);
+
+    // Inspired volume runs slightly above expired: a small circuit leak is the
+    // normal state, and a UI that shows VTi == VTe hides the one signal that
+    // reveals a growing leak.
+    const double leakFraction = activeMode.nonInvasive ? 0.22 : 0.035;
+    m_vti = m_vte * (1.0 + leakFraction
+                     + std::sin(m_sampleIndex * 0.011) * leakFraction * 0.25);
+
+    // Total PEEP exceeds set PEEP when expiratory time is short relative to
+    // the time constant - the mechanism behind gas trapping.
+    const double expiratoryTime = qMax(0.1, 60.0 / qMax(1.0, m_ftotal)
+                                            - qMax(0.3, double(m_inspiratoryTime)));
+    const double trappingRatio = m_rcexp > 0.0 ? expiratoryTime / (3.0 * m_rcexp) : 9.0;
+    m_totalPeep = m_peep + (trappingRatio < 1.0 ? (1.0 - trappingRatio) * 6.0 : 0.0);
+
+    m_breath.peakPressure = m_ppeak;
+    m_breath.plateauPressure = m_pplat;
+    m_breath.meanPressure = m_pmean;
+    m_breath.setPeep = m_peep;
+    m_breath.totalPeep = m_totalPeep;
+    m_breath.inspiredVolume = m_vti;
+    m_breath.expiredVolume = m_vte;
+    m_breath.peakInspiratoryFlow = m_peakInspFlow;
+    m_breath.peakExpiratoryFlow = m_peakExpFlow;
+    m_breath.respiratoryRate = m_ftotal;
+    m_breath.spontaneousRate = m_spontaneousRate;
+    m_breath.inspiratoryTime = m_inspiratoryTime;
+    m_breath.expiratoryTime = expiratoryTime;
+    m_breath.squareFlow = m_squareFlow;
+    m_breath.passive = m_passivePatient;
+    m_breath.plateauValid = m_plateauValid;
+    m_breath.totalPeepValid = m_totalPeepValid;
+
+    // Hold-derived values go stale. Rather than displaying a five-minute-old
+    // plateau beside live numbers, the validity is withdrawn.
+    const double holdAge = m_mechanics.inspiratoryHoldAgeSeconds();
+    if (m_plateauValid && holdAge > sv::services::RespiratoryMechanics::kManoeuvreValiditySeconds)
+        m_plateauValid = false;
+    const double expHoldAge = m_mechanics.expiratoryHoldAgeSeconds();
+    if (m_totalPeepValid && expHoldAge > sv::services::RespiratoryMechanics::kManoeuvreValiditySeconds)
+        m_totalPeepValid = false;
+
     evaluateAlarms();
     saveSnapshotIfDue();
     emit measurementsChanged();
@@ -951,17 +1654,21 @@ void VentilatorController::evaluateAlarms()
         return;
     }
 
-    if (m_minuteVolume > m_alarmHighMv * 10) {
+    if (m_expMinVol > m_alarmHighMv) {
         if (!wasPreviouslyActive || m_alarmController->headline() != QStringLiteral("High Minute Volume")) {
             m_alarmController->addAlarm(
                 QStringLiteral("Critical"), QStringLiteral("Volume"),
-                QStringLiteral("Minute volume ") + QString::number(m_minuteVolume) + QStringLiteral("% exceeds limit"),
+                QStringLiteral("Expired minute volume %1 L/min above the %2 L/min limit")
+                    .arg(QString::number(m_expMinVol, 'f', 1))
+                    .arg(m_alarmHighMv),
                 QStringLiteral("Active"));
         }
         m_alarmController->setActive(true);
         m_alarmController->setPriority(QStringLiteral("Critical"));
         m_alarmController->setHeadline(QStringLiteral("High Minute Volume"));
-        m_alarmController->setDetail(QStringLiteral("CT Low"));
+        m_alarmController->setDetail(
+            QStringLiteral("%1 L/min above limit").arg(
+                QString::number(m_expMinVol - m_alarmHighMv, 'f', 1)));
         return;
     }
 
