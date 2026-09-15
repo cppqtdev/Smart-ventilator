@@ -1,0 +1,70 @@
+// -----------------------------------------------------------------------
+// File: PatientSummary.qml
+// Description: Gender, height and ideal body weight, right aligned
+// Part of: Smart Ventilator and Respiratory Monitoring UI
+// -----------------------------------------------------------------------
+//
+// An Item wrapping a ColumnLayout, not a bare Column: a Column positions its
+// children itself and refuses any child that anchors to it, so the MouseArea
+// that makes the block tappable would disable the whole column.
+//
+import QtQuick
+import QtQuick.Layouts
+import "../Theme"
+
+Item {
+    id: summary
+
+    property string gender: ""
+    property string heightText: ""
+    property string weightText: ""
+
+    signal clicked()
+
+    implicitWidth: column.implicitWidth
+    implicitHeight: column.implicitHeight
+
+    ColumnLayout {
+        id: column
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        spacing: Metrics.px(4)
+
+        Text {
+            Layout.fillWidth: true
+            text: summary.gender
+            color: Colors.textPrimary
+            font.family: Typography.family
+            font.pixelSize: Typography.label
+            font.weight: Typography.bold
+            horizontalAlignment: Text.AlignRight
+            elide: Text.ElideRight
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: summary.heightText
+            color: Colors.textSecondary
+            font.family: Typography.family
+            font.pixelSize: Typography.label
+            horizontalAlignment: Text.AlignRight
+            elide: Text.ElideRight
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: summary.weightText
+            color: Colors.textSecondary
+            font.family: Typography.family
+            font.pixelSize: Typography.label
+            horizontalAlignment: Text.AlignRight
+            elide: Text.ElideRight
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: summary.clicked()
+    }
+}
