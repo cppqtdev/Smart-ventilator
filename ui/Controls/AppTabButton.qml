@@ -19,8 +19,4 @@ AppButton {
     fontWeight: Typography.bold
     implicitHeight: Metrics.navHeight
 
-    Accessible.role: Accessible.PageTab
-    Accessible.name: tab.text
-    Accessible.checkable: true
-    Accessible.checked: tab.selected
 }

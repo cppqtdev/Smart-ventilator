@@ -151,7 +151,6 @@ Item {
                 selected: pane.triggerByFlow
                 onClicked: pane.triggerByFlow = true
 
-                Accessible.description: qsTr("Trigger on flow")
             }
 
             ChipButton {
@@ -159,7 +158,6 @@ Item {
                 selected: !pane.triggerByFlow
                 onClicked: pane.triggerByFlow = false
 
-                Accessible.description: qsTr("Trigger on pressure")
             }
 
             Item { Layout.fillWidth: true }

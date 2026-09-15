@@ -30,7 +30,6 @@ Button {
     implicitHeight: Metrics.touchTarget
     implicitWidth: Math.max(Math.round(120 * Metrics.scale),
                             root.implicitContentWidth + Spacing.xl * 2)
-    hoverEnabled: true
 
     font.family: Typography.family
     font.pixelSize: Typography.label
@@ -45,7 +44,7 @@ Button {
     background: GlossSurface {
         radius: Radius.sm
         enabled: root.enabled
-        interaction: root.pressed ? 2 : (root.hovered ? 1 : 0)
+        interaction: root.pressed ? 2 : 0
         // A ghost button is the outline and nothing else.
         hollow: root.variant === "ghost"
         selected: root.variant === "primary" || root.variant === "danger"

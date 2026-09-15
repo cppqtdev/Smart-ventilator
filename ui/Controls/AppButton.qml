@@ -73,8 +73,6 @@ T.AbstractButton {
                                                                : Colors.controlDisabled
         if (control.down)
             return Qt.darker(control.baseColor, 1.18)
-        if (control.hovered && !control.active)
-            return Qt.lighter(control.baseColor, 1.12)
         return control.baseColor
     }
 
@@ -86,8 +84,6 @@ T.AbstractButton {
     // gets the label width instead. Layouts honour the minimum over the
     // preferred size, so this is what stops a button from clipping its text.
     Layout.minimumWidth: control.implicitWidth
-
-    hoverEnabled: true
 
     background: Rectangle {
         radius: control.radius

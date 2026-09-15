@@ -99,7 +99,6 @@ Rectangle {
         anchors.fill: parent
         enabled: root.locked
         acceptedButtons: Qt.AllButtons
-        hoverEnabled: true
         preventStealing: true
         onClicked: function(mouse) { mouse.accepted = true }
         onPressed: function(mouse) { mouse.accepted = true }

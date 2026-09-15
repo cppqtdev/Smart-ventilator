@@ -187,8 +187,6 @@ Panel {
 
                 MouseArea {
                     anchors.fill: parent
-                    cursorShape: Qt.SizeHorCursor
-
                     onPositionChanged: function (mouse) {
                         var centre = cursor.x + cursor.width / 2 + mouse.x - cursor.width / 2
                         root.cursorMoved(cursor.index, chart.valueForX(centre))

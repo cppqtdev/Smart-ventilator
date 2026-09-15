@@ -217,19 +217,16 @@ Item {
                     LimbHeading {
                         text: qsTr("Inflation")
                         tint: Colors.success
-                        Accessible.name: qsTr("Inflation limb")
                     }
 
                     LimbHeading {
                         text: qsTr("Deflation")
                         tint: Colors.accent
-                        Accessible.name: qsTr("Deflation limb")
                     }
 
                     LimbHeading {
                         text: qsTr("Paw")
                         tint: Colors.warning
-                        Accessible.name: qsTr("Airway pressure")
                     }
 
                     LimbCell { value: pane.limb("inflation", 0); unit: "ml" }

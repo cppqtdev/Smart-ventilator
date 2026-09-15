@@ -15,7 +15,6 @@ T.CheckBox {
     implicitWidth: control.boxSize + control.spacing + control.implicitContentWidth
     implicitHeight: Math.max(Metrics.touchMinimum, control.boxSize)
 
-    hoverEnabled: true
     spacing: Spacing.sm
 
     indicator: Rectangle {

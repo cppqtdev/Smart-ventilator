@@ -28,7 +28,6 @@ QtObject {
     readonly property color lineStrong:   nightMode ? "#6A5330" : "#47536A"
     readonly property color lineSubtle:   nightMode ? "#33250F" : "#2C3547"
     readonly property color border:       line
-    readonly property color focusRing:    nightMode ? "#F0A63C" : "#8FBBFF"
 
     readonly property color brand:          nightMode ? "#E0A54B" : "#458CF2"
     readonly property color accent:         brand

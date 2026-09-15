@@ -43,10 +43,6 @@ Rectangle {
     border.width: indicator.low ? Metrics.borderWidth : 0
     border.color: indicator.chargeColor
 
-    Accessible.role: Accessible.Indicator
-    Accessible.name: (indicator.acConnected ? qsTr("Mains power") : qsTr("Battery power"))
-                     + ", " + indicator.percentage + qsTr(" percent")
-
     RowLayout {
         id: row
         anchors.centerIn: parent

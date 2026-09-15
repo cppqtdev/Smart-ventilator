@@ -70,7 +70,7 @@ Rectangle {
     radius: Radius.medium
     color: Colors.surface
     opacity: tile.available ? 1.0 : 0.45
-    border.width: tile.critical || tile.cautionary ? Metrics.focusWidth : 0
+    border.width: tile.critical || tile.cautionary ? Metrics.emphasisWidth : 0
     border.color: tile.critical ? Colors.alarmHigh
                 : tile.cautionary ? Colors.alarmMedium
                 : tile.alarmTint

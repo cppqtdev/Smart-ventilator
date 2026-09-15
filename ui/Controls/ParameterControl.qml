@@ -349,7 +349,7 @@ Item {
 
                     background: GlossSurface {
                         radius: Radius.sm
-                        interaction: parent.pressed ? 2 : (parent.hovered ? 1 : 0)
+                        interaction: parent.pressed ? 2 : 0
                         // Lit, because this is the button that commits a
                         // therapy change - it should be the obvious target
                         // once a value is pending.
@@ -390,12 +390,6 @@ Item {
         Layout.preferredWidth: Metrics.touchTarget
         Layout.fillHeight: true
         Layout.maximumHeight: Metrics.touchPrimary
-        hoverEnabled: true
-
-        Accessible.role: Accessible.Button
-        Accessible.name: stepper.direction > 0
-            ? qsTr("Increase %1").arg(stepper.parameterLabel)
-            : qsTr("Decrease %1").arg(stepper.parameterLabel)
 
         onPressed: stepper.stepped()
 
@@ -424,8 +418,8 @@ Item {
         background: GlossSurface {
             radius: Radius.sm
             enabled: stepper.enabled
-            interaction: stepper.pressed ? 2 : (stepper.hovered ? 1 : 0)
-            bloom: stepper.pressed || stepper.hovered
+            interaction: stepper.pressed ? 2 : 0
+            bloom: stepper.pressed
                 ? Math.round(5 * Metrics.scale) : Math.round(2 * Metrics.scale)
         }
 

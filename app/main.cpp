@@ -8,6 +8,7 @@
 
 #include <QGuiApplication>
 #include <QQuickStyle>
+#include <QStyleHints>
 #include <QByteArray>
 
 int main(int argc, char *argv[])
@@ -16,6 +17,11 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("Basic"));
 
     QGuiApplication app(argc, argv);
+
+    // Touch panel: controls seed hoverEnabled from this hint when they are
+    // created, so clearing it once spares every control its own opt-out.
+    app.styleHints()->setUseHoverEffects(false);
+
     sv::common::applyApplicationIdentity();
 
     Application application;

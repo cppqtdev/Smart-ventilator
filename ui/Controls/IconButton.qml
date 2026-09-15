@@ -33,24 +33,19 @@ AbstractButton {
 
     implicitWidth: Metrics.touchTarget
     implicitHeight: Metrics.touchTarget
-    hoverEnabled: true
-
-    Accessible.role: Accessible.Button
-    Accessible.name: control.accessibleName
-    Accessible.onPressAction: control.clicked()
 
     background: GlossSurface {
         radius: control.radius
         enabled: control.enabled
         selected: control.checked
-        interaction: control.pressed ? 2 : (control.hovered ? 1 : 0)
+        interaction: control.pressed ? 2 : 0
         // backgroundColor is the caller's tint override - a danger icon
         // button passes the alarm red and gets the same glass in that hue.
         accentColor: control.backgroundColor.a > 0
             ? control.backgroundColor : Colors.glassRim
         glowColor: control.backgroundColor.a > 0
             ? control.backgroundColor : Colors.glassGlow
-        bloom: control.hovered || control.pressed || control.checked
+        bloom: control.pressed || control.checked
             ? Math.round(5 * Metrics.scale) : Math.round(2 * Metrics.scale)
     }
 
@@ -65,16 +60,5 @@ AbstractButton {
             color: control.iconColor
             opacity: control.enabled ? 1.0 : 0.45
         }
-    }
-
-    // Focus ring for keyboard and encoder-wheel navigation.
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: -2
-        visible: control.visualFocus
-        radius: control.radius + 2
-        color: Colors.transparent
-        border.width: Metrics.focusWidth
-        border.color: Colors.focusRing
     }
 }

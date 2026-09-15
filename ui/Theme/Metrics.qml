@@ -73,7 +73,7 @@ QtObject {
 
     readonly property real hairline: 1
     readonly property real borderWidth: 1
-    readonly property real focusWidth: 2
+    readonly property real emphasisWidth: 2
     readonly property real waveformStroke: Math.max(2, metrics.px(2))
 
     readonly property int durationInstant: 90

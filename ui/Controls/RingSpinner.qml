@@ -136,13 +136,6 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
-
-            MouseArea {
-                anchors.fill: parent
-                onWheel: function (wheel) {
-                    spinner.apply(wheel.angleDelta.y > 0 ? 1 : -1)
-                }
-            }
         }
     }
 
@@ -157,12 +150,6 @@ Item {
         font.pixelSize: Math.max(Typography.caption,
                                  Math.round(Typography.dialLabel * spinner.sizeRatio))
     }
-
-    Accessible.role: Accessible.SpinBox
-    Accessible.name: spinner.label
-    Accessible.description: qsTr("%1, currently %2").arg(spinner.label).arg(spinner.value)
-    Accessible.onIncreaseAction: spinner.apply(1)
-    Accessible.onDecreaseAction: spinner.apply(-1)
 
     component StepButton: Item {
         id: step

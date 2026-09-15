@@ -60,8 +60,6 @@ Rectangle {
     border.width: Metrics.borderWidth
     border.color: annunciator.active ? annunciator.priorityColor : Colors.line
 
-    Accessible.role: Accessible.AlertMessage
-    Accessible.name: annunciator.active
         ? (annunciator.priority + " priority alarm: " + annunciator.headline)
         : annunciator.idleStatus
 

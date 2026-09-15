@@ -22,7 +22,6 @@ Popup {
     signal accepted(string pin)
 
     modal: true
-    focus: true
     closePolicy: Popup.NoAutoClose
     width: Math.min(parent ? parent.width * 0.38 : 560, 560)
     height: pinPanel.implicitHeight

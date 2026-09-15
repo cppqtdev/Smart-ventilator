@@ -115,7 +115,6 @@ Item {
                                      && pane.pendingMode === modelData.key
                             onClicked: pane.pendingMode = modelData.key
 
-                            Accessible.description: pane.describe(modelData.key)
                         }
                     }
                 }

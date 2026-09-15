@@ -90,8 +90,7 @@ Item {
                 Layout.fillWidth: false
                 Layout.fillHeight: false
                 radius: Radius.small
-                color: dismissArea.pressed ? Colors.line
-                     : (dismissArea.containsMouse ? Colors.surfaceOverlay : Colors.transparent)
+                color: dismissArea.pressed ? Colors.line : Colors.transparent
 
                 AppIcon {
                     anchors.centerIn: parent
@@ -103,18 +102,10 @@ Item {
                 MouseArea {
                     id: dismissArea
                     anchors.fill: parent
-                    hoverEnabled: true
                     onClicked: {
                         hideTimer.stop()
                         body.opacity = 0
                     }
-                }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: qsTr("Dismiss")
-                Accessible.onPressAction: {
-                    hideTimer.stop()
-                    body.opacity = 0
                 }
             }
         }

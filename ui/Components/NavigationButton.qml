@@ -27,23 +27,16 @@ AbstractButton {
 
     implicitWidth: Math.round(112 * Metrics.scale)
     implicitHeight: Metrics.touchTarget
-    hoverEnabled: true
-
-    Accessible.role: Accessible.PageTab
-    Accessible.name: navButton.text
-    Accessible.checkable: true
-    Accessible.checked: navButton.selected
 
     background: GlossSurface {
         radius: Radius.sm
         enabled: navButton.enabled
         selected: navButton.selected
-        interaction: navButton.pressed ? 2 : (navButton.hovered ? 1 : 0)
+        interaction: navButton.pressed ? 2 : 0
         // Thirteen tabs sit in this row, so the resting bloom is kept small -
         // a full glow on every one turns the bar into a light strip and the
         // selected tab stops standing out, which is the whole point.
         bloom: navButton.selected ? Math.round(6 * Metrics.scale)
-             : navButton.hovered ? Math.round(3 * Metrics.scale)
              : Math.round(1 * Metrics.scale)
 
         // A 3 px rule under the active destination. Selection is carried by
