@@ -111,18 +111,6 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // The glow behind the lung brightens with the breath, so the
-            // motion reads at a distance where the outline alone would not.
-            Rectangle {
-                anchors.centerIn: lungImage
-                width: lungImage.width * 1.08
-                height: lungImage.height * 1.08
-                radius: width / 2
-                color: Colors.accentSubtle
-                opacity: 0.10 + content.inflation * 0.18
-                visible: content.ventilating
-            }
-
             Image {
                 id: lungImage
 
