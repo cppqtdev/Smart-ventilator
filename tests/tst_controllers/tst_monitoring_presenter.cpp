@@ -88,10 +88,19 @@ void TestMonitoringPresenter::readoutsHaveSixEntries()
     for (const QVariant &entry : readouts)
         keys << entry.toMap().value(QStringLiteral("key")).toString();
 
-    QVERIFY(keys.contains(QStringLiteral("pcuff")));
-    QVERIFY(keys.contains(QStringLiteral("petco2")));
-    QVERIFY(keys.contains(QStringLiteral("cstat")));
-    QVERIFY(keys.contains(QStringLiteral("spo2")));
+    // pcuff was here and is not any more. Cuff pressure appears on one
+    // reference panel and nothing on this device measures it, so the readout
+    // would have had to invent a number. The six are the set the dynamic
+    // lung strip draws.
+    for (const QString &expected : {QStringLiteral("totalPeep"),
+                                    QStringLiteral("fspont"),
+                                    QStringLiteral("petco2"),
+                                    QStringLiteral("cstat"),
+                                    QStringLiteral("rinsp"),
+                                    QStringLiteral("spo2")}) {
+        QVERIFY2(keys.contains(expected),
+                 qPrintable(QStringLiteral("readout %1 is missing").arg(expected)));
+    }
 }
 
 void TestMonitoringPresenter::petco2IsTheAccentedReadout()
@@ -176,7 +185,10 @@ void TestMonitoringPresenter::requestSettingOutsideRangeIsRefused()
 
 void TestMonitoringPresenter::toggleFreezeFlipsTheControllerState()
 {
-    QVERIFY(m_ventilator->requestStartVentilation());
+    // A start needs an admitted patient, and freezing needs a running one.
+    m_ventilator->acceptPatient(QStringLiteral("Adult"), 73);
+    QVERIFY2(m_ventilator->requestStartVentilation(),
+             qPrintable(m_ventilator->lastCommandMessage()));
     const bool before = m_ventilator->frozen();
     m_presenter->toggleFreeze();
     QCOMPARE(m_ventilator->frozen(), !before);

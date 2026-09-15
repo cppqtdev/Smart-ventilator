@@ -78,11 +78,28 @@ TestCase {
         verify(tile.critical)
     }
 
+    // Every test that needs a real mouse event fails in this environment
+    // while every test that does not, passes. That is one fault, not seven,
+    // and it is either delivery or a precondition on the item. This says
+    // which: the checks below fail with the item's own state rather than a
+    // bare "0 is not 1".
+    function clickAndReport(item, spy, what) {
+        verify(item.visible, what + " is not visible")
+        verify(item.enabled, what + " is not enabled")
+        verify(item.width > 0 && item.height > 0,
+               what + " has no size: " + item.width + " x " + item.height)
+        var at = item.mapToItem(null, item.width / 2, item.height / 2)
+        mouseClick(item)
+        verify(spy.count > 0,
+               what + " took no click at scene (" + Math.round(at.x) + ", "
+               + Math.round(at.y) + "); size " + item.width + " x " + item.height)
+        return spy.count
+    }
+
     function test_tile_reports_activation() {
         var tile = createTemporaryObject(tileComponent, suite)
         var spy = spyComponent.createObject(suite, { target: tile, signalName: "activated" })
-        mouseClick(tile)
-        compare(spy.count, 1)
+        compare(clickAndReport(tile, spy, "the tile"), 1)
     }
 
     function test_tile_dims_when_unavailable() {
@@ -137,7 +154,10 @@ TestCase {
     }
 
     function test_home_layouts_resolve_to_a_real_file() {
-        compare(HomeLayouts.entries.length, 5)
+        // The number of layouts is not asserted here. It is pinned against
+        // the C++ clamp by scripts/layout_count.py, and a second copy of it
+        // in this file only went stale when two more layouts landed.
+        verify(HomeLayouts.entries.length > 0)
         for (var i = 0; i < HomeLayouts.entries.length; ++i) {
             var entry = HomeLayouts.entries[i]
             var source = HomeLayouts.sourceFor(entry.id)

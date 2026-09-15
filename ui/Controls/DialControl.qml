@@ -37,8 +37,13 @@ Item {
     //   ring, carve disc 11.9 beyond it.
     readonly property real assemblyRatio: 1.842
 
+    // The readable floor used to win over the width, so a dial given a
+    // narrow column drew a ring plus two step buttons wider than the column
+    // and overflowed it. The width is the ceiling; Layout.minimumWidth below
+    // is how the dial asks a layout for the room the floor needs, which is
+    // the place to insist on it.
     readonly property int ringSize:
-        Math.max(Metrics.px(56),
+        Math.max(Metrics.px(28),
                  Math.min(Metrics.dialSize,
                           Math.floor(dial.width / dial.assemblyRatio)))
 

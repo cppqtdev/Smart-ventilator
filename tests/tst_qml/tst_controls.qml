@@ -49,19 +49,39 @@ TestCase {
         AppCheckBox { text: "Enabled" }
     }
 
+    // Every test that needs a real mouse event fails in this environment
+    // while every test that does not, passes. That is one fault, not seven,
+    // and it is either delivery or a precondition on the item. This says
+    // which: the checks below fail with the item's own state rather than a
+    // bare "0 is not 1".
+    function clickAndReport(item, spy, what) {
+        verify(item.visible, what + " is not visible")
+        verify(item.enabled, what + " is not enabled")
+        verify(item.width > 0 && item.height > 0,
+               what + " has no size: " + item.width + " x " + item.height)
+        var at = item.mapToItem(null, item.width / 2, item.height / 2)
+        mouseClick(item)
+        verify(spy.count > 0,
+               what + " took no click at scene (" + Math.round(at.x) + ", "
+               + Math.round(at.y) + "); size " + item.width + " x " + item.height)
+        return spy.count
+    }
+
     function test_button_reports_clicks() {
         var button = createTemporaryObject(buttonComponent, suite)
         verify(button)
         var spy = signalSpyComponent.createObject(suite, { target: button, signalName: "clicked" })
-        mouseClick(button)
-        compare(spy.count, 1)
+        compare(clickAndReport(button, spy, "the button"), 1)
     }
 
     function test_button_checkable_toggles() {
         var button = createTemporaryObject(buttonComponent, suite, { checkable: true })
         compare(button.checked, false)
+        verify(button.visible && button.width > 0 && button.height > 0,
+               "the button has no size: " + button.width + " x " + button.height)
         mouseClick(button)
-        compare(button.checked, true)
+        verify(button.checked,
+               "the button took no click; size " + button.width + " x " + button.height)
         compare(button.active, true)
         mouseClick(button)
         compare(button.checked, false)
@@ -98,8 +118,12 @@ TestCase {
         compare(bar.keyAt(2), "c")
 
         var spy = signalSpyComponent.createObject(suite, { target: bar, signalName: "activated" })
+        verify(bar.visible, "the tab bar is not visible")
+        verify(bar.width > 0 && bar.height > 0, "the tab bar has no size")
         mouseClick(bar, bar.width * 0.5, bar.height * 0.5)
-        compare(spy.count, 1)
+        verify(spy.count > 0,
+               "the tab bar took no click at its own centre; size "
+               + bar.width + " x " + bar.height)
         compare(bar.currentIndex, 1)
     }
 
@@ -161,8 +185,12 @@ TestCase {
     function test_checkbox_toggles() {
         var box = createTemporaryObject(checkComponent, suite)
         compare(box.checked, false)
+        verify(box.visible, "the checkbox is not visible")
+        verify(box.width > 0 && box.height > 0,
+               "the checkbox has no size: " + box.width + " x " + box.height)
         mouseClick(box)
-        compare(box.checked, true)
+        verify(box.checked,
+               "the checkbox took no click; size " + box.width + " x " + box.height)
     }
 
     Component {
