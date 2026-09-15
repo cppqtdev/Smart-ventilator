@@ -127,6 +127,10 @@ class VentilatorController : public QObject
      * measurement by forgetting to check a separate flag.
      */
     Q_PROPERTY(QVariantMap mechanics READ mechanics NOTIFY measurementsChanged)
+    Q_PROPERTY(bool pvToolRunning READ pvToolRunning NOTIFY pvToolChanged)
+    Q_PROPERTY(QVariantList pvInflationLimb READ pvInflationLimb NOTIFY pvToolChanged)
+    Q_PROPERTY(QVariantList pvDeflationLimb READ pvDeflationLimb NOTIFY pvToolChanged)
+    Q_PROPERTY(QVariantMap pvResult READ pvResult NOTIFY pvToolChanged)
 
 public:
     /**
@@ -259,6 +263,29 @@ public:
 
     /** @return All derived mechanics, each with its validity. */
     QVariantMap mechanics() const;
+
+    bool pvToolRunning() const;
+    QVariantList pvInflationLimb() const;
+    QVariantList pvDeflationLimb() const;
+
+    /**
+     * @return Keys lip, uip, pdr, vpeep, cInflation, cDeflation - each a
+     *         number, or absent while the manoeuvre has not produced one.
+     */
+    QVariantMap pvResult() const;
+
+    /**
+     * @brief Runs the low flow pressure-volume manoeuvre.
+     *
+     * Refused unless the ventilator is in standby, because the manoeuvre
+     * takes the airway away from the breath delivery it would otherwise be
+     * giving. The limbs build as it runs and the derived points land at the
+     * end, which is why the screen shows dashes until then.
+     */
+    Q_INVOKABLE bool startPvTool();
+
+    /** @brief Abandons a running manoeuvre and clears what it had. */
+    Q_INVOKABLE void stopPvTool();
 
     /**
      * @brief Performs an inspiratory hold to measure plateau pressure.
@@ -480,6 +507,7 @@ public slots:
     void setPatientIbwKg(int ibwKg);
 
 signals:
+    void pvToolChanged();
     void runningChanged();
     void frozenChanged();
     void settingsChanged();
@@ -517,6 +545,12 @@ private:
      */
     int *alarmLimitTarget(const QString &limit, int *low, int *high,
                           QString *label, QString *unit);
+
+    /** @brief One sample of the pressure-volume manoeuvre. */
+    void stepPvTool();
+
+    /** @brief Fits the limbs and fills pvResult. */
+    void finishPvTool();
     bool validateMode(const QString &mode, QString *reason) const;
     bool validateStart(QString *reason) const;
     bool validateSettingEnvelope(const QString &parameter, int value, QString *reason) const;
@@ -586,6 +620,13 @@ private:
     int m_alarmLowPressure = 5;
     int m_alarmApneaTime = 20;
     int m_apneaSeconds = 0;
+
+    QTimer m_pvTimer;
+    bool m_pvRunning = false;
+    int m_pvStep = 0;
+    QVariantList m_pvInflation;
+    QVariantList m_pvDeflation;
+    QVariantMap m_pvResult;
     int m_alarmLowVt = 300;
     int m_alarmHighMv = 12;
     int m_alarmLowSpo2 = 90;

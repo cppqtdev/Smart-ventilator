@@ -456,6 +456,7 @@ ApplicationWindow {
             alarmData: root.alarmModel
             onInspiratoryHoldRequested: root.ventilatorModel.performInspiratoryHold()
             onExpiratoryHoldRequested: root.ventilatorModel.performExpiratoryHold()
+            onSettingsRequested: root.currentScreen = "alarms"
         }
     }
 

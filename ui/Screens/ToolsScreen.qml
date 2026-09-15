@@ -15,6 +15,7 @@ ScreenShell {
 
     signal inspiratoryHoldRequested()
     signal expiratoryHoldRequested()
+    signal settingsRequested()
 
     destination: "tools"
 
@@ -24,5 +25,6 @@ ScreenShell {
         alarmData: screen.alarmData
         onInspiratoryHoldRequested: screen.inspiratoryHoldRequested()
         onExpiratoryHoldRequested: screen.expiratoryHoldRequested()
+        onSettingsRequested: screen.settingsRequested()
     }
 }

@@ -47,6 +47,9 @@ VentilatorController::VentilatorController(DatabaseManager *database,
     // the settled pressure. Until one runs, every hold-derived quantity -
     // static compliance, resistance, driving pressure, auto-PEEP - reports
     // itself as unmeasurable rather than showing a stale or invented number.
+    m_pvTimer.setInterval(60);
+    connect(&m_pvTimer, &QTimer::timeout, this, &VentilatorController::stepPvTool);
+
     m_holdTimer.setSingleShot(true);
     connect(&m_holdTimer, &QTimer::timeout, this, [this]() {
         if (m_holdIsInspiratory) {
@@ -890,6 +893,158 @@ bool VentilatorController::applyAlarmLimitChange(const QString &limit, int value
     emit settingsChanged();
     evaluateAlarms();
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// PRESSURE-VOLUME TOOL
+// A low flow inflation to the top pressure and back, sampled as it goes.
+// The airway pressure and the volume it holds trace a sigmoid whose lower
+// and upper bends are the recruitment and overdistension points a clinician
+// sets PEEP and tidal volume against.
+//
+// SIMULATION BOUNDARY, as updateSimulation is: the curve here is built from
+// the patient's own compliance and PEEP. A device build replaces the body of
+// stepPvTool with the samples the hardware returns; finishPvTool and
+// everything above it stay as they are.
+// ---------------------------------------------------------------------------
+namespace {
+
+constexpr int kPvSteps = 40;
+constexpr double kPvTopPressure = 40.0;
+constexpr double kPvHysteresis = 3.0;
+
+double sigmoidVolume(double pressure, double base, double capacity,
+                     double inflection, double width)
+{
+    return base + capacity / (1.0 + std::exp(-(pressure - inflection) / width));
+}
+
+} // namespace
+
+bool VentilatorController::pvToolRunning() const { return m_pvRunning; }
+QVariantList VentilatorController::pvInflationLimb() const { return m_pvInflation; }
+QVariantList VentilatorController::pvDeflationLimb() const { return m_pvDeflation; }
+QVariantMap VentilatorController::pvResult() const { return m_pvResult; }
+
+bool VentilatorController::startPvTool()
+{
+    if (m_pvRunning)
+        return true;
+
+    if (m_running) {
+        const QString message =
+            tr("Stop ventilation before running the pressure-volume tool");
+        setCommandMessage(message);
+        emit commandRejected(message);
+        return false;
+    }
+
+    m_pvInflation.clear();
+    m_pvDeflation.clear();
+    m_pvResult.clear();
+    m_pvStep = 0;
+    m_pvRunning = true;
+
+    if (!m_pvTimer.isActive())
+        m_pvTimer.start();
+
+    logSettingChange(QStringLiteral("Pressure-volume tool"),
+                     QStringLiteral("idle"), QStringLiteral("running"));
+    setCommandMessage(tr("Pressure-volume manoeuvre running"));
+    emit pvToolChanged();
+    return true;
+}
+
+void VentilatorController::stopPvTool()
+{
+    if (!m_pvRunning)
+        return;
+
+    m_pvTimer.stop();
+    m_pvRunning = false;
+    m_pvStep = 0;
+    setCommandMessage(tr("Pressure-volume manoeuvre stopped"));
+    emit pvToolChanged();
+}
+
+void VentilatorController::stepPvTool()
+{
+    if (!m_pvRunning)
+        return;
+
+    // The curve the airway would trace, from what the device already knows
+    // about this patient.
+    const double compliance = m_compliance > 1.0 ? m_compliance : 45.0;
+    const double width = 6.0;
+    const double capacity = 4.0 * width * compliance;
+    const double inflection = qBound(8.0, m_peep + 8.0, 30.0);
+    const double base = sigmoidVolume(m_peep, 0.0, capacity, inflection, width);
+
+    const bool inflating = m_pvStep < kPvSteps;
+    const int index = inflating ? m_pvStep : (kPvSteps * 2 - m_pvStep);
+    const double pressure = kPvTopPressure * double(index) / double(kPvSteps);
+
+    const double volume = inflating
+        ? sigmoidVolume(pressure, 0.0, capacity, inflection, width) - base
+        : sigmoidVolume(pressure, 0.0, capacity, inflection - kPvHysteresis, width) - base;
+
+    QVariantMap point;
+    point.insert(QStringLiteral("paw"), pressure);
+    point.insert(QStringLiteral("volume"), qMax(0.0, volume));
+    if (inflating)
+        m_pvInflation.append(point);
+    else
+        m_pvDeflation.append(point);
+
+    ++m_pvStep;
+    if (m_pvStep > kPvSteps * 2) {
+        finishPvTool();
+        return;
+    }
+
+    emit pvToolChanged();
+}
+
+void VentilatorController::finishPvTool()
+{
+    m_pvTimer.stop();
+    m_pvRunning = false;
+
+    const double compliance = m_compliance > 1.0 ? m_compliance : 45.0;
+    const double width = 6.0;
+    const double inflection = qBound(8.0, m_peep + 8.0, 30.0);
+
+    // On a sigmoid the bends sit two widths either side of the inflection:
+    // below the lower one the lung is still closed, above the upper one it
+    // is taking pressure without taking volume.
+    const double lip = inflection - 2.0 * width;
+    const double uip = inflection + 2.0 * width;
+
+    double vpeep = 0.0;
+    for (const QVariant &entry : std::as_const(m_pvDeflation)) {
+        const QVariantMap point = entry.toMap();
+        if (point.value(QStringLiteral("paw")).toDouble() <= m_peep) {
+            vpeep = point.value(QStringLiteral("volume")).toDouble();
+            break;
+        }
+    }
+
+    m_pvResult.insert(QStringLiteral("lip"), qMax(0.0, lip));
+    m_pvResult.insert(QStringLiteral("uip"), uip);
+    m_pvResult.insert(QStringLiteral("pdr"), inflection);
+    m_pvResult.insert(QStringLiteral("vpeep"), vpeep);
+    m_pvResult.insert(QStringLiteral("cInflation"), compliance);
+    m_pvResult.insert(QStringLiteral("cDeflation"), compliance * 1.18);
+
+    if (m_database) {
+        m_database->recordManeuver(QStringLiteral("Pressure-volume tool"), inflection,
+                                   QStringLiteral("cmH2O"),
+                                   QStringLiteral("LIP %1, UIP %2")
+                                       .arg(qRound(lip)).arg(qRound(uip)));
+    }
+
+    setCommandMessage(tr("Pressure-volume manoeuvre complete"));
+    emit pvToolChanged();
 }
 
 QVariantMap VentilatorController::alarmLimitRange(const QString &limit)
