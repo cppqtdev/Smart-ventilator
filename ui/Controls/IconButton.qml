@@ -10,8 +10,9 @@
 // safety-critical control. Shrinking the target to fit the glyph is the
 // usual way this goes wrong.
 //
-// accessibleName is not optional. An icon-only control with no name is
-// invisible to assistive technology and to automated UI tests.
+// accessibleName is not optional. An icon-only control with no name cannot
+// be identified by the automated UI tests or named in a log line - the glyph
+// is all there is to go on otherwise.
 //
 import QtQuick
 import QtQuick.Controls.Basic
@@ -28,7 +29,7 @@ AbstractButton {
     property int radius: Radius.sm
     property bool showBorder: false
 
-    /** Spoken/queried label. Required for icon-only controls. */
+    /** Plain-language identity for tests and logs. Required for icon-only controls. */
     property string accessibleName: ""
 
     implicitWidth: Metrics.touchTarget

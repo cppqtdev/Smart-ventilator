@@ -33,8 +33,25 @@ Item {
     property color textColor: "white"
     property int textPixelSize: 24
 
-    width: 160
-    height: 220
+    signal clicked()
+
+    readonly property alias pressed: tap.pressed
+
+    /*  With no pointer there is no hover to say what a shape will do, so the
+        press is the only feedback a tap ever gets. The whole shape carries
+        it, not just the label. */
+    readonly property color activeFill: root.pressed ? Qt.darker(root.backgroundColor, 1.18)
+                                                     : root.backgroundColor
+
+    width: Math.max(160, Metrics.touchTarget)
+    height: Math.max(220, Metrics.touchTarget)
+    opacity: root.enabled ? 1.0 : 0.45
+
+    TapHandler {
+        id: tap
+
+        onTapped: root.clicked()
+    }
 
     Loader {
         anchors.fill: parent
@@ -59,43 +76,21 @@ Item {
     }
 
 
-    Control {
-        visible: edge === CurvedSideButton.Right
-        anchors.right: parent.right
+    Text {
         anchors.verticalCenter: parent.verticalCenter
-        anchors.rightMargin: 14
+        anchors.horizontalCenter: root.edge === CurvedSideButton.Top
+                                  || root.edge === CurvedSideButton.Bottom
+                                  ? parent.horizontalCenter : undefined
+        anchors.left: root.edge === CurvedSideButton.Left ? parent.left : undefined
+        anchors.right: root.edge === CurvedSideButton.Right ? parent.right : undefined
+        anchors.margins: Metrics.px(14)
 
-        MouseArea {
-            anchors.fill: parent
-        }
-
-        contentItem: Text {
-            text: root.text
-            color: root.textColor
-            font.pixelSize: root.textPixelSize
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
-
-
-    Control {
-        visible: edge === CurvedSideButton.Left
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: 14
-
-        MouseArea {
-            anchors.fill: parent
-        }
-
-        contentItem: Text {
-            text: root.text
-            color: root.textColor
-            font.pixelSize: root.textPixelSize
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        text: root.text
+        color: root.textColor
+        font.family: Typography.family
+        font.pixelSize: root.textPixelSize
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
     }
 
     //
@@ -111,7 +106,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-                fillColor: root.backgroundColor
+                fillColor: root.activeFill
                 strokeColor: root.borderColor
                 strokeWidth: root.borderWidth
 
@@ -174,7 +169,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-                fillColor: root.backgroundColor
+                fillColor: root.activeFill
                 strokeColor: root.borderColor
                 strokeWidth: root.borderWidth
 
@@ -237,7 +232,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-                fillColor: root.backgroundColor
+                fillColor: root.activeFill
                 strokeColor: root.borderColor
                 strokeWidth: root.borderWidth
 
@@ -300,7 +295,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-                fillColor: root.backgroundColor
+                fillColor: root.activeFill
                 strokeColor: root.borderColor
                 strokeWidth: root.borderWidth
 

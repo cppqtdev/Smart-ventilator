@@ -15,6 +15,7 @@ import QtQuick.Layouts
 import "../../Components"
 import "../../Controls"
 import "../../Theme"
+import "../../Dialogs"
 
 Item {
     id: pane
@@ -210,6 +211,8 @@ Item {
                 Layout.preferredHeight: Metrics.actionButtonHeight
                 text: qsTr("Reset")
                 buttonVariant: AppButton.Success
+                enabled: pane.ventilatorData
+                onClicked: resetTimeConfirm.open()
             }
 
             Item { Layout.fillHeight: true }
@@ -226,6 +229,19 @@ Item {
             onSettingRequested: function (key, value) {
                 pane.settingRequested(key, value)
             }
+        }
+    }
+
+    ConfirmDialog {
+        id: resetTimeConfirm
+
+        titleText: qsTr("Reset ventilation time")
+        messageText: qsTr("Clear the elapsed ventilation time for this patient? Ventilation is not affected.")
+        confirmText: qsTr("Reset")
+
+        onConfirmed: {
+            if (pane.ventilatorData)
+                pane.ventilatorData.resetVentilationTime()
         }
     }
 }

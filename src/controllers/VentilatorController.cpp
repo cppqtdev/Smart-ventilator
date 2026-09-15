@@ -477,6 +477,15 @@ bool VentilatorController::requestStartVentilation()
     return true;
 }
 
+void VentilatorController::resetVentilationTime()
+{
+    if (m_ventilationSeconds == 0)
+        return;
+
+    m_ventilationSeconds = 0;
+    emit measurementsChanged();
+}
+
 void VentilatorController::stopVentilation()
 {
     if (!m_running)

@@ -317,6 +317,14 @@ public:
     Q_INVOKABLE bool requestStartVentilation();
     /** @brief Stops the ventilator simulation loop. */
     Q_INVOKABLE void stopVentilation();
+    /**
+     * @brief Returns the elapsed-ventilation readout to zero.
+     *
+     * The count is a record of how long this patient has been ventilated, so
+     * it is cleared deliberately rather than as a side effect. Ventilation
+     * itself is untouched - the timer keeps running if it was running.
+     */
+    Q_INVOKABLE void resetVentilationTime();
     /** @brief Toggles waveform freeze on or off. */
     Q_INVOKABLE void toggleFreeze();
     /** @brief Runs a simulated sensor calibration sequence. */

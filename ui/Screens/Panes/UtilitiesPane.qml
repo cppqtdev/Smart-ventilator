@@ -12,6 +12,7 @@ import QtQuick
 import QtQuick.Layouts
 import "../../Controls"
 import "../../Theme"
+import "../../Dialogs"
 
 Item {
     id: pane
@@ -144,9 +145,22 @@ Item {
             actionText: qsTr("Reset")
             variant: AppButton.Secondary
             actionEnabled: pane.alarmData && pane.alarmData.resettable
-            onActioned: pane.alarmData.resetLatched()
+            onActioned: resetLatchedConfirm.open()
         }
 
         Item { Layout.fillHeight: true }
+    }
+
+    ConfirmDialog {
+        id: resetLatchedConfirm
+
+        titleText: qsTr("Reset latched alarms")
+        messageText: qsTr("Clear every latched alarm condition? A condition that is still present will latch again.")
+        confirmText: qsTr("Reset")
+
+        onConfirmed: {
+            if (pane.alarmData)
+                pane.alarmData.resetLatched()
+        }
     }
 }

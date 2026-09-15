@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Layouts
 import "../../Controls"
 import "../../Theme"
+import "../../Dialogs"
 
 Item {
     id: pane
@@ -62,10 +63,7 @@ Item {
             ChipButton {
                 Layout.preferredWidth: Math.max(Metrics.px(78), implicitWidth)
                 text: qsTr("Clear")
-                onClicked: {
-                    if (pane.logData)
-                        pane.logData.clear()
-                }
+                onClicked: clearLogConfirm.open()
             }
         }
 
@@ -131,6 +129,19 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    ConfirmDialog {
+        id: clearLogConfirm
+
+        titleText: qsTr("Clear log")
+        messageText: qsTr("Discard every entry currently in the log? This cannot be undone.")
+        confirmText: qsTr("Clear")
+
+        onConfirmed: {
+            if (pane.logData)
+                pane.logData.clear()
         }
     }
 }
