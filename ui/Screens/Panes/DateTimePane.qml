@@ -68,7 +68,7 @@ Item {
 
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            spacing: Metrics.px(48)
+            spacing: Metrics.gutter
 
             RingSpinner {
                 label: qsTr("Hour")
@@ -95,7 +95,7 @@ Item {
 
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
-            spacing: Metrics.px(48)
+            spacing: Metrics.gutter
 
             RingSpinner {
                 label: qsTr("Day")

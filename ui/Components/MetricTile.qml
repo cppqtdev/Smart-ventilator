@@ -70,7 +70,9 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Spacing.md
+        // The reference tile clears its text by the same 13 on every side.
+        // Anything less puts the bottom row inside the corner radius.
+        anchors.margins: Metrics.px(13)
         spacing: Spacing.xs
 
         RowLayout {
@@ -111,10 +113,12 @@ Rectangle {
         Item { Layout.fillHeight: true }
 
         Text {
+            Layout.fillWidth: true
             text: tile.upperText
             color: Colors.textPrimary
             font.family: Typography.monoFamily
             font.pixelSize: Typography.tileLimit
+            elide: Text.ElideRight
             visible: tile.upperText.length > 0
         }
 
@@ -122,20 +126,25 @@ Rectangle {
             Layout.fillWidth: true
             spacing: Spacing.sm
 
+            // The lower limit keeps its place in the row even when it is
+            // empty, because the reference puts the unit against the right
+            // edge on every tile and an absent limit must not pull it left.
             Text {
+                Layout.fillWidth: true
                 text: tile.lowerText
                 color: Colors.textPrimary
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.tileLimit
-                Layout.fillWidth: true
-                visible: tile.lowerText.length > 0
+                elide: Text.ElideRight
             }
 
             Text {
+                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                 text: tile.unit
                 color: Colors.textPrimary
                 font.family: Typography.monoFamily
                 font.pixelSize: Typography.tileUnit
+                horizontalAlignment: Text.AlignRight
             }
         }
 
