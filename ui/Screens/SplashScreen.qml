@@ -14,7 +14,6 @@
 // the operator sees it.
 //
 import QtQuick
-import QtQuick.Shapes
 import "../Theme"
 
 Item {
@@ -121,61 +120,6 @@ Item {
         color: Colors.background
     }
 
-    // A breath traced across the screen: one inspiratory rise, a plateau and
-    // an expiratory decay, drawn once and then breathing gently. It is the
-    // waveform the device exists to produce.
-    Item {
-        id: breath
-
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -Metrics.px(10)
-        height: Metrics.px(220)
-        opacity: 0.20
-
-        Shape {
-            anchors.fill: parent
-            antialiasing: true
-
-            ShapePath {
-                strokeColor: Colors.wavePressure
-                strokeWidth: Metrics.px(3)
-                fillColor: Colors.transparent
-                capStyle: ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-
-                startX: 0
-                startY: breath.height * 0.72
-
-                PathCubic {
-                    x: breath.width * 0.22; y: breath.height * 0.28
-                    control1X: breath.width * 0.09; control1Y: breath.height * 0.72
-                    control2X: breath.width * 0.14; control2Y: breath.height * 0.28
-                }
-                PathLine { x: breath.width * 0.38; y: breath.height * 0.28 }
-                PathCubic {
-                    x: breath.width * 0.62; y: breath.height * 0.72
-                    control1X: breath.width * 0.48; control1Y: breath.height * 0.28
-                    control2X: breath.width * 0.52; control2Y: breath.height * 0.72
-                }
-                PathLine { x: breath.width * 0.78; y: breath.height * 0.72 }
-                PathCubic {
-                    x: breath.width; y: breath.height * 0.40
-                    control1X: breath.width * 0.87; control1Y: breath.height * 0.72
-                    control2X: breath.width * 0.92; control2Y: breath.height * 0.40
-                }
-            }
-        }
-
-        SequentialAnimation on opacity {
-            running: true
-            loops: Animation.Infinite
-            NumberAnimation { to: 0.34; duration: 1600; easing.type: Easing.InOutSine }
-            NumberAnimation { to: 0.16; duration: 2400; easing.type: Easing.InOutSine }
-        }
-    }
-
     Column {
         id: identity
 
@@ -206,24 +150,46 @@ Item {
 
             // A ring that fills with the checks that have settled: the
             // progress is the readiness, not a timer.
-            Item {
-                width: Metrics.px(84)
+            Canvas {
+                id: logoMark
+
+                width: Metrics.px(104)
                 height: width
                 anchors.verticalCenter: parent.verticalCenter
 
-                RingGaugeShape {
-                    anchors.fill: parent
-                    fraction: splash.fraction
+                onPaint: {
+                    var ctx = getContext("2d")
+                    var unit = width / 190
+                    ctx.reset()
+                    ctx.strokeStyle = Colors.brand
+                    ctx.fillStyle = Colors.brand
+                    ctx.lineWidth = 9 * unit
+                    ctx.lineJoin = "round"
+                    ctx.lineCap = "round"
+
+                    ctx.beginPath()
+                    ctx.moveTo(58 * unit, 148 * unit)
+                    ctx.lineTo(82 * unit, 48 * unit)
+                    ctx.lineTo(132 * unit, 48 * unit)
+                    ctx.lineTo(132 * unit, 84 * unit)
+                    ctx.moveTo(132 * unit, 148 * unit)
+                    ctx.lineTo(132 * unit, 104 * unit)
+                    ctx.lineTo(170 * unit, 104 * unit)
+                    ctx.lineTo(170 * unit, 84 * unit)
+                    ctx.lineTo(96 * unit, 84 * unit)
+                    ctx.lineTo(82 * unit, 148 * unit)
+                    ctx.lineTo(58 * unit, 148 * unit)
+                    ctx.stroke()
+
+                    ctx.beginPath()
+                    ctx.arc(132 * unit, 78 * unit, 7 * unit, 0, Math.PI * 2)
+                    ctx.fill()
+                    ctx.beginPath()
+                    ctx.arc(132 * unit, 112 * unit, 7 * unit, 0, Math.PI * 2)
+                    ctx.fill()
                 }
 
-                Text {
-                    anchors.centerIn: parent
-                    text: Math.round(splash.fraction * 100) + "%"
-                    color: Colors.textPrimary
-                    font.family: Typography.monoFamily
-                    font.pixelSize: Typography.px(18)
-                    font.weight: Typography.bold
-                }
+                onWidthChanged: requestPaint()
             }
 
             Rectangle {
@@ -274,6 +240,26 @@ Item {
         anchors.verticalCenterOffset: Metrics.px(78)
         width: Math.min(parent.width * 0.5, Metrics.px(420))
         spacing: Metrics.px(6)
+
+        Rectangle {
+            width: checks.width
+            height: Metrics.px(4)
+            radius: height / 2
+            color: Colors.line
+
+            Rectangle {
+                width: parent.width * splash.fraction
+                height: parent.height
+                radius: parent.radius
+                color: Colors.brand
+
+                Behavior on width {
+                    NumberAnimation { duration: 280; easing.type: Easing.OutCubic }
+                }
+            }
+        }
+
+        Item { width: 1; height: Metrics.px(8) }
 
         Repeater {
             model: splash.stages
@@ -369,54 +355,6 @@ Item {
 
         Behavior on opacity {
             NumberAnimation { duration: Branding.splashHandoverMs; easing.type: Easing.InCubic }
-        }
-    }
-
-    component RingGaugeShape: Item {
-        id: ring
-
-        property real fraction: 0
-        readonly property real stroke: Metrics.px(6)
-
-        Shape {
-            anchors.fill: parent
-            antialiasing: true
-
-            ShapePath {
-                strokeColor: Colors.line
-                strokeWidth: ring.stroke
-                fillColor: Colors.transparent
-                capStyle: ShapePath.FlatCap
-
-                PathAngleArc {
-                    centerX: ring.width / 2
-                    centerY: ring.height / 2
-                    radiusX: ring.width / 2 - ring.stroke / 2
-                    radiusY: ring.height / 2 - ring.stroke / 2
-                    startAngle: -90
-                    sweepAngle: 360
-                }
-            }
-
-            ShapePath {
-                strokeColor: Colors.brand
-                strokeWidth: ring.stroke
-                fillColor: Colors.transparent
-                capStyle: ShapePath.RoundCap
-
-                PathAngleArc {
-                    centerX: ring.width / 2
-                    centerY: ring.height / 2
-                    radiusX: ring.width / 2 - ring.stroke / 2
-                    radiusY: ring.height / 2 - ring.stroke / 2
-                    startAngle: -90
-                    sweepAngle: 360 * ring.fraction
-
-                    Behavior on sweepAngle {
-                        NumberAnimation { duration: 320; easing.type: Easing.OutCubic }
-                    }
-                }
-            }
         }
     }
 }

@@ -27,6 +27,8 @@ class UserController : public QObject
     Q_PROPERTY(QString currentUser READ currentUser NOTIFY sessionChanged)
     Q_PROPERTY(QString currentRole READ currentRole NOTIFY sessionChanged)
     Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY sessionChanged)
+    Q_PROPERTY(QString lastLoginError READ lastLoginError NOTIFY loginErrorChanged)
+    Q_PROPERTY(int accountCount READ accountCount NOTIFY accountsChanged)
     Q_PROPERTY(int lockTimeoutSeconds READ lockTimeoutSeconds
                WRITE setLockTimeoutSeconds NOTIFY lockTimeoutChanged)
 
@@ -48,6 +50,12 @@ public:
      * @param pin  4-digit PIN code.
      * @return True if authentication succeeded.
      */
+    /** @return Why the last login failed. Empty when none has. */
+    QString lastLoginError() const;
+
+    /** @return How many operator accounts exist. Zero means none was configured. */
+    int accountCount() const;
+
     Q_INVOKABLE bool login(const QString &username, const QString &pin);
 
     /** @brief Ends the current operator session. */
@@ -113,6 +121,8 @@ signals:
     void sessionChanged();
     void lockTimeoutChanged();
     void loginFailed(const QString &reason);
+    void loginErrorChanged();
+    void accountsChanged();
     void userListChanged();
 
 private:
@@ -129,6 +139,7 @@ private:
      * with other accounts in it must not leave the bedside without one.
      */
     void ensureBedsideAccount();
+    void setLoginError(const QString &reason);
     static bool roleValid(const QString &role);
     static int roleLevel(const QString &role);
     void provisionInitialAdminFromEnvironment();
@@ -138,6 +149,7 @@ private:
     DatabaseManager *m_database = nullptr;
     QString m_currentUser;
     QString m_currentRole;
+    QString m_lastLoginError;
     int m_lockTimeoutSeconds = 300;
     QHash<QString, int> m_failedAttempts;
     QHash<QString, QDateTime> m_lockedUntilUtc;

@@ -30,6 +30,12 @@ Rectangle {
         root.unlocked()
     }
 
+    // A device with no operator account must not lock anyone out of a running
+    // ventilator. When none is configured the overlay says so and opens on a
+    // press, and the missing account is what gets fixed, not the lock.
+    readonly property bool credentialsConfigured:
+        root.users !== undefined && root.users !== null && root.users.accountCount > 0
+
     function press(symbol) {
         if (symbol === "C") {
             root.entry = ""
@@ -39,11 +45,13 @@ Rectangle {
         if (symbol === "OK") {
             if (!root.users)
                 return
-            if (root.users.login(root.userName, root.entry))
+            if (root.users.login(root.userName, root.entry)) {
                 root.release()
-            else {
+            } else {
                 root.entry = ""
-                root.message = qsTr("Wrong number")
+                root.message = root.users.lastLoginError.length > 0
+                               ? root.users.lastLoginError
+                               : qsTr("Wrong number")
             }
             return
         }
@@ -115,9 +123,9 @@ Rectangle {
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: root.users
+            text: root.credentialsConfigured
                   ? qsTr("Enter the personal identification number for %1").arg(root.userName)
-                  : qsTr("Touch the button below to unlock")
+                  : qsTr("No operator account is configured on this device")
             color: Colors.textSecondary
             font.family: Typography.family
             font.pixelSize: Typography.body
@@ -127,7 +135,7 @@ Rectangle {
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: Spacing.md
-            visible: root.users !== undefined && root.users !== null
+            visible: root.credentialsConfigured
 
             Repeater {
                 model: 4
@@ -149,7 +157,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             columns: 3
             spacing: Spacing.md
-            visible: root.users !== undefined && root.users !== null
+            visible: root.credentialsConfigured
 
             Repeater {
                 model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "OK"]
@@ -185,7 +193,7 @@ Rectangle {
             implicitHeight: Metrics.px(64)
             text: qsTr("Unlock")
             buttonVariant: AppButton.Primary
-            visible: root.users === undefined || root.users === null
+            visible: !root.credentialsConfigured
             onClicked: root.release()
         }
 

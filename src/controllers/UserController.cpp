@@ -7,6 +7,8 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
+#include <sv/common/LogBuffer.h>
+
 #include <QRegularExpression>
 
 UserController::UserController(DatabaseManager *database, QObject *parent)
@@ -65,10 +67,35 @@ int UserController::roleLevel(const QString &role)
     return 0;
 }
 
-bool UserController::login(const QString &username, const QString &pin)
+QString UserController::lastLoginError() const
+{
+    return m_lastLoginError;
+}
+
+int UserController::accountCount() const
 {
     if (!m_database)
+        return 0;
+    QSqlQuery query(QSqlDatabase::database(QStringLiteral("SmartVentilatorConnection")));
+    if (!query.exec(QStringLiteral("SELECT COUNT(*) FROM users")) || !query.next())
+        return 0;
+    return query.value(0).toInt();
+}
+
+void UserController::setLoginError(const QString &reason)
+{
+    if (m_lastLoginError == reason)
+        return;
+    m_lastLoginError = reason;
+    emit loginErrorChanged();
+}
+
+bool UserController::login(const QString &username, const QString &pin)
+{
+    if (!m_database) {
+        setLoginError(tr("No storage, so no account could be checked"));
         return false;
+    }
 
     const QDateTime nowUtc = QDateTime::currentDateTimeUtc();
     QSqlQuery stateQuery(QSqlDatabase::database(QStringLiteral("SmartVentilatorConnection")));
@@ -86,8 +113,9 @@ bool UserController::login(const QString &username, const QString &pin)
 
     const QDateTime lockedUntil = m_lockedUntilUtc.value(username);
     if (lockedUntil.isValid() && lockedUntil > nowUtc) {
-        const QString reason = QStringLiteral("Account locked. Try again in %1 seconds")
+        const QString reason = tr("Locked after repeated attempts. Try again in %1 s")
             .arg(nowUtc.secsTo(lockedUntil));
+        setLoginError(reason);
         emit loginFailed(reason);
         if (m_database)
             m_database->logEvent(QStringLiteral("Security"),
@@ -111,10 +139,11 @@ bool UserController::login(const QString &username, const QString &pin)
             m_lockedUntilUtc.insert(username, lockedUntilToPersist);
             m_failedAttempts.insert(username, 0);
         }
-        emit loginFailed(QStringLiteral("Invalid username or PIN"));
+        setLoginError(tr("No account named %1 on this device").arg(username));
+        emit loginFailed(m_lastLoginError);
         if (m_database)
             m_database->logEvent(QStringLiteral("Security"),
-                QStringLiteral("Failed login attempt for user: ") + username);
+                QStringLiteral("Login attempt for unknown user: ") + username);
         return false;
     }
 
@@ -133,7 +162,8 @@ bool UserController::login(const QString &username, const QString &pin)
             m_failedAttempts.insert(username, 0);
         }
         persistFailedLogin(username, failures >= 5 ? 0 : failures, lockedUntilToPersist);
-        emit loginFailed(QStringLiteral("Invalid username or PIN"));
+        setLoginError(tr("Wrong number for %1").arg(username));
+        emit loginFailed(m_lastLoginError);
         if (m_database)
             m_database->logEvent(QStringLiteral("Security"),
                 QStringLiteral("Failed login attempt for user: ") + username);
@@ -156,6 +186,7 @@ bool UserController::login(const QString &username, const QString &pin)
     m_failedAttempts.remove(username);
     m_lockedUntilUtc.remove(username);
     clearFailedLogin(username);
+    setLoginError(QString());
     emit sessionChanged();
 
     if (m_database)
@@ -407,9 +438,19 @@ void UserController::ensureBedsideAccount()
             QStringLiteral("Default bedside operator 'clinician' created with a "
                            "default number; change it before clinical use"),
             QStringLiteral("ProvisioningRequired"));
+        if (auto *log = sv::common::LogBuffer::instance()) {
+            log->note(sv::common::LogBuffer::Notice, QStringLiteral("sv.security"),
+                      tr("Default bedside operator created"));
+        }
     } else {
         qWarning() << "Could not create the default bedside operator";
+        if (auto *log = sv::common::LogBuffer::instance()) {
+            log->note(sv::common::LogBuffer::Critical, QStringLiteral("sv.security"),
+                      tr("Could not create the default bedside operator; "
+                         "the screen lock has no account to check against"));
+        }
     }
+    emit accountsChanged();
 }
 
 void UserController::provisionInitialAdminFromEnvironment()
