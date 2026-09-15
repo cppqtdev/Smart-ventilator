@@ -11,6 +11,19 @@
 
 using namespace sv::services;
 using namespace sv::domain;
+// QCOMPARE renders whatever it is given as a char*. Argument dependent
+// lookup finds sv::domain::toString for this type, which returns a QString,
+// and QTest's generic fallback cannot turn one of those into a char*, so the
+// test would not compile at all. This is that rendering, and it is what
+// QCOMPARE prints when the comparison fails.
+namespace QTest {
+template <>
+inline char *toString(const sv::domain::AlarmPriority &value)
+{
+    return qstrdup(sv::domain::toString(value).toUtf8().constData());
+}
+} // namespace QTest
+
 
 class TestAlarmEvaluator : public QObject
 {
