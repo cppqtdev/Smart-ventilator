@@ -56,6 +56,7 @@ Rectangle {
     // Anchored to the top left of the panel it sat on the volume axis.
     Text {
         id: heading
+        z: 1
         anchors.right: plot.right
         anchors.rightMargin: Spacing.sm
         anchors.top: plot.top
@@ -118,6 +119,7 @@ Rectangle {
     }
 
     Text {
+        z: 1
         anchors.left: plot.left
         anchors.leftMargin: Spacing.xs
         anchors.top: plot.top
