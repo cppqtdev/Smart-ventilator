@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------
 // File: PatientSummary.qml
-// Description: Gender, height and ideal body weight, right aligned
+// Description: Gender, height and ideal body weight, left aligned
 // Part of: Smart Ventilator and Respiratory Monitoring UI
 // -----------------------------------------------------------------------
 //
@@ -19,6 +19,7 @@ Item {
     property string heightText: ""
     property string weightText: ""
     property int fontSize: Typography.label
+    property int alignment: Text.AlignLeft
 
     signal clicked()
 
@@ -39,7 +40,7 @@ Item {
             font.family: Typography.family
             font.pixelSize: summary.fontSize
             font.weight: Typography.bold
-            horizontalAlignment: Text.AlignRight
+            horizontalAlignment: summary.alignment
             elide: Text.ElideRight
         }
 
@@ -49,7 +50,7 @@ Item {
             color: Colors.textSecondary
             font.family: Typography.family
             font.pixelSize: summary.fontSize
-            horizontalAlignment: Text.AlignRight
+            horizontalAlignment: summary.alignment
             elide: Text.ElideRight
         }
 
@@ -59,7 +60,7 @@ Item {
             color: Colors.textSecondary
             font.family: Typography.family
             font.pixelSize: summary.fontSize
-            horizontalAlignment: Text.AlignRight
+            horizontalAlignment: summary.alignment
             elide: Text.ElideRight
         }
     }
