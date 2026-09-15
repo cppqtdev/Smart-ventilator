@@ -21,7 +21,7 @@ Rectangle {
     // of sweepSeconds worth of samples is exactly one sweep across the panel.
     property int sampleRateHz: 22
 
-    readonly property int axisHeight: Metrics.px(26)
+    readonly property int axisHeight: Metrics.px(22)
 
     radius: Radius.medium
     color: Colors.surface
@@ -38,8 +38,8 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Spacing.lg
-        spacing: Spacing.lg
+        anchors.margins: Spacing.md
+        spacing: Spacing.md
 
         Repeater {
             id: channelRepeater
@@ -50,7 +50,12 @@ Rectangle {
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.minimumHeight: Metrics.waveformHeightMin
+                // A lane asked for 100 as its floor, so two lanes plus the
+                // time axis wanted more than the shorter panels are given
+                // and the axis was pushed out of the panel. 100 is what a
+                // lane wants; 64 is what it can still be read at.
+                Layout.preferredHeight: Metrics.waveformHeightMin
+                Layout.minimumHeight: Metrics.px(64)
 
                 channelKey: modelData.key
                 presenter: panel.presenter

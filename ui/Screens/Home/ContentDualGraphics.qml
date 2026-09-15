@@ -29,7 +29,7 @@ ColumnLayout {
 
     WaveformPanel {
         Layout.fillWidth: true
-        Layout.preferredHeight: Metrics.px(230)
+        Layout.preferredHeight: Metrics.px(258)
         frozen: content.frozen
         presenter: content.presenter
         channels: [
