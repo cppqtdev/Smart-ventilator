@@ -14,6 +14,7 @@ UserController::UserController(DatabaseManager *database, QObject *parent)
     , m_database(database)
 {
     provisionInitialAdminFromEnvironment();
+    ensureBedsideAccount();
 }
 
 QString UserController::currentUser() const { return m_currentUser; }
@@ -372,6 +373,45 @@ void UserController::clearFailedLogin(const QString &username)
         qWarning() << "Failed to clear login lockout:" << query.lastError().text();
 }
 
+void UserController::ensureBedsideAccount()
+{
+    if (!m_database)
+        return;
+
+    const QString bedsideUser = QStringLiteral("clinician");
+
+    QSqlQuery existing(QSqlDatabase::database(
+        QStringLiteral("SmartVentilatorConnection")));
+    existing.prepare(QStringLiteral("SELECT COUNT(*) FROM users WHERE username = ?"));
+    existing.addBindValue(bedsideUser);
+    if (existing.exec() && existing.next() && existing.value(0).toInt() > 0)
+        return;
+
+    // createUser() requires an Admin caller. There is no session yet, so the
+    // controller elevates itself for this one write and puts the session back.
+    const QString savedUser = m_currentUser;
+    const QString savedRole = m_currentRole;
+    m_currentUser = QStringLiteral("system");
+    m_currentRole = QStringLiteral("Admin");
+
+    const bool created = createUser(bedsideUser, QStringLiteral("0000"),
+                                    QStringLiteral("Nurse"),
+                                    QStringLiteral("Default bedside operator"));
+
+    m_currentUser = savedUser;
+    m_currentRole = savedRole;
+
+    if (created) {
+        m_database->logEvent(
+            QStringLiteral("Security"),
+            QStringLiteral("Default bedside operator 'clinician' created with a "
+                           "default number; change it before clinical use"),
+            QStringLiteral("ProvisioningRequired"));
+    } else {
+        qWarning() << "Could not create the default bedside operator";
+    }
+}
+
 void UserController::provisionInitialAdminFromEnvironment()
 {
     if (!m_database)
@@ -415,26 +455,12 @@ void UserController::provisionInitialAdminFromEnvironment()
         return;
     }
 
-    // Without any account the screen lock can never be opened, which locks
-    // the operator out of a running ventilator. A default bedside account is
-    // created instead, and recorded as one that has to be replaced.
     if (!bootstrapValid) {
-        const QString savedDefaultUser = m_currentUser;
-        const QString savedDefaultRole = m_currentRole;
-        m_currentUser = QStringLiteral("system");
-        m_currentRole = QStringLiteral("Admin");
-
-        createUser(QStringLiteral("clinician"), QStringLiteral("0000"),
-                   QStringLiteral("Clinician"), QStringLiteral("Default bedside operator"));
-
-        m_currentUser = savedDefaultUser;
-        m_currentRole = savedDefaultRole;
-
         m_database->logEvent(
             QStringLiteral("Security"),
-            QStringLiteral("Default bedside operator 'clinician' created with a default "
-                           "number; change it before clinical use, or set "
-                           "SMARTVENT_ADMIN_USER and SMARTVENT_ADMIN_PIN"),
+            QStringLiteral("No environment bootstrap account; the default bedside "
+                           "operator is used until SMARTVENT_ADMIN_USER and "
+                           "SMARTVENT_ADMIN_PIN are set"),
             QStringLiteral("ProvisioningRequired"));
         return;
     }

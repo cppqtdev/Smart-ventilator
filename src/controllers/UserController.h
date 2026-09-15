@@ -119,6 +119,16 @@ private:
     static QString createSalt();
     static QString hashPin(const QString &pin, const QString &salt);
     static bool pinFormatValid(const QString &pin);
+
+    /**
+     * @brief Creates the default bedside account when it is missing.
+     *
+     * Without an account the screen lock can never be opened, which locks the
+     * operator out of a running ventilator. This runs on every start and is
+     * independent of the environment bootstrap, because an existing database
+     * with other accounts in it must not leave the bedside without one.
+     */
+    void ensureBedsideAccount();
     static bool roleValid(const QString &role);
     static int roleLevel(const QString &role);
     void provisionInitialAdminFromEnvironment();
