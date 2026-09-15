@@ -16,6 +16,14 @@ Item {
     property var presenter
     property var settingsData
 
+    // frozen and the patient click used to come from ScreenShell, which this
+    // screen no longer is. Reading the freeze from the presenter keeps it
+    // where it belongs, and the click is a signal main.qml wires like any
+    // other.
+    readonly property bool frozen: home.presenter ? home.presenter.frozen : false
+
+    signal patientRequested()
+
     property int layoutId: home.settingsData
                            ? home.settingsData.monitoringLayout
                            : HomeLayouts.defaultId
@@ -38,7 +46,8 @@ Item {
             item.presenter = Qt.binding(function () { return home.presenter })
             if (item.frozen !== undefined)
                 item.frozen = Qt.binding(function () { return home.frozen })
-            item.patientClicked.connect(home.patientRequested)
+            if (item.patientClicked !== undefined)
+                item.patientClicked.connect(home.patientRequested)
         }
     }
 }

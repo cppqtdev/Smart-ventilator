@@ -53,8 +53,20 @@ void applyConnectionPragmas(QSqlDatabase &database)
         return;
 
     QSqlQuery pragma(database);
-    pragma.exec(QStringLiteral("PRAGMA journal_mode = WAL"));
-    pragma.exec(QStringLiteral("PRAGMA busy_timeout = 5000"));
+
+    // A journal mode that silently stayed on rollback is a database where one
+    // writer locks out every reader, so the achieved mode is checked rather
+    // than assumed.
+    if (pragma.exec(QStringLiteral("PRAGMA journal_mode = WAL")) && pragma.next()) {
+        const QString mode = pragma.value(0).toString().toLower();
+        if (mode != QLatin1String("wal")) {
+            qWarning() << "DatabaseManager: write-ahead logging was refused, journal mode is"
+                       << mode << "- writers will lock out readers";
+        }
+    }
+    pragma.finish();
+
+    pragma.exec(QStringLiteral("PRAGMA busy_timeout = 15000"));
     pragma.exec(QStringLiteral("PRAGMA synchronous = FULL"));
     pragma.exec(QStringLiteral("PRAGMA foreign_keys = ON"));
 }
@@ -101,26 +113,56 @@ public slots:
         if (!ensureOpen())
             return;
 
+        // Reading the previous hash and then inserting is one operation, not
+        // two. It has to be atomic for the chain to mean anything - two
+        // writers that both read the same previous hash fork it - and it has
+        // to take the write lock up front.
+        //
+        // Without BEGIN IMMEDIATE the SELECT opens a read snapshot and the
+        // INSERT then tries to upgrade it. In WAL that upgrade fails at once
+        // with SQLITE_BUSY_SNAPSHOT if anything else has written since, and
+        // the busy timeout does not retry an upgrade - which is the
+        // "database is locked" that was dropping audit rows.
+        QSqlQuery begin(m_database);
+        if (!begin.exec(QStringLiteral("BEGIN IMMEDIATE"))) {
+            qWarning() << "DatabaseManager:"
+                       << QStringLiteral("Unable to begin event write: ")
+                              + begin.lastError().text();
+            return;
+        }
+
         const QString timestamp = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
         QString previousHash;
-        QSqlQuery prev(m_database);
-        if (prev.exec(QStringLiteral("SELECT hash FROM events ORDER BY id DESC LIMIT 1"))
-            && prev.next()) {
-            previousHash = prev.value(0).toString();
+        {
+            QSqlQuery prev(m_database);
+            if (prev.exec(QStringLiteral("SELECT hash FROM events ORDER BY id DESC LIMIT 1"))
+                && prev.next()) {
+                previousHash = prev.value(0).toString();
+            }
+            prev.finish();
         }
 
         const QString hash = hashEventPayload(previousHash, timestamp, source, description, status);
         QSqlQuery query(m_database);
-        if (!query.exec(QStringLiteral(
+        const bool inserted = query.exec(QStringLiteral(
                 "INSERT INTO events(created_at, source, description, status, hash) "
                 "VALUES(%1, %2, %3, %4, %5)")
                 .arg(sqlString(timestamp),
                      sqlString(source),
                      sqlString(description),
                      sqlString(status),
-                     sqlString(hash)))) {
+                     sqlString(hash)));
+
+        QSqlQuery finish(m_database);
+        if (!inserted) {
             qWarning() << "DatabaseManager:"
                        << QStringLiteral("Unable to insert event: ") + query.lastError().text();
+            finish.exec(QStringLiteral("ROLLBACK"));
+            return;
+        }
+        if (!finish.exec(QStringLiteral("COMMIT"))) {
+            qWarning() << "DatabaseManager:"
+                       << QStringLiteral("Unable to commit event: ") + finish.lastError().text();
         }
     }
 

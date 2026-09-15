@@ -385,6 +385,7 @@ ApplicationWindow {
         HomeScreen {
             presenter: monitoringPresenter
             settingsData: appSettings
+            onPatientRequested: root.currentScreen = "patient"
         }
     }
 

@@ -96,6 +96,39 @@ Item {
         return out
     }
 
+    // The chart had nothing to draw unless the manoeuvre had been run, and
+    // the manoeuvre refuses to run during ventilation - so on a ventilating
+    // device the P/V page was a permanently empty plot. A pressure-volume
+    // loop is a picture of the breath being delivered; it comes from the
+    // waveforms the device is already publishing, and the manoeuvre's own
+    // limbs take over once it has produced them.
+    readonly property bool hasManoeuvre:
+        pane.pvInflation.length > 0 || pane.pvDeflation.length > 0
+
+    readonly property var breathPressure:
+        pane.ventilatorData ? pane.ventilatorData.pressureWaveform : []
+
+    readonly property var breathVolume:
+        pane.ventilatorData ? pane.ventilatorData.volumeWaveform : []
+
+    function loopX() {
+        return pane.hasManoeuvre ? pane.limbAxis("paw") : pane.breathPressure
+    }
+
+    function loopY() {
+        return pane.hasManoeuvre ? pane.limbAxis("volume") : pane.breathVolume
+    }
+
+    function loopCeiling() {
+        var samples = pane.loopY()
+        var peak = 0
+        for (var i = 0; i < samples.length; ++i) {
+            if (samples[i] > peak)
+                peak = samples[i]
+        }
+        return peak * 1.2
+    }
+
     readonly property var pages: [
         { key: "pv",       label: qsTr("P/V Tools") },
         { key: "config",   label: qsTr("Configuration") },
@@ -318,9 +351,13 @@ Item {
                     xMinimum: 0
                     xMaximum: 40
                     yMinimum: 0
-                    yMaximum: 1000
-                    xSamples: pane.limbAxis("paw")
-                    ySamples: pane.limbAxis("volume")
+                    // A neonate delivering 60 mL against a fixed 1000 axis is
+                    // a flat line on the bottom edge, so the scale follows
+                    // the breath with a floor that keeps it from twitching.
+                    yMaximum: Math.max(100, Math.ceil(pane.loopCeiling() / 100) * 100)
+                    xSamples: pane.loopX()
+                    ySamples: pane.loopY()
+                    traceColor: pane.hasManoeuvre ? Colors.accent : Colors.waveVolume
                 }
 
                 // The points the manoeuvre is run for: where the lung starts
