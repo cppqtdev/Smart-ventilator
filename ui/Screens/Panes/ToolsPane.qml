@@ -24,8 +24,8 @@ Item {
 
     // Two cursors, as the reference draws them. The chips choose which one
     // the dial moves; either can also be dragged on the chart.
-    property real cursorPressure: 0
-    property real cursorPressureTwo: 0
+    property real cursorPressure: 10
+    property real cursorPressureTwo: 30
 
     readonly property real activeCursorPressure:
         pane.cursor === "2" ? pane.cursorPressureTwo : pane.cursorPressure
@@ -145,7 +145,7 @@ Item {
                 Layout.preferredWidth: Metrics.px(258)
                 Layout.maximumWidth: Metrics.px(258)
                 Layout.alignment: Qt.AlignTop
-                spacing: Spacing.md
+                spacing: Spacing.sm
 
                 ChipButton {
                     Layout.fillWidth: true
@@ -156,7 +156,13 @@ Item {
                 }
 
                 DialControl {
-                    Layout.fillWidth: true
+                    // Sized from its own width, and the width of this column
+                    // made it 140 across - tall enough on its own to push
+                    // Start/Stop and the derived points under the navigation
+                    // bar. The cursor does not need the rail's dial.
+                    Layout.fillWidth: false
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: Metrics.px(160)
                     label: ""
                     unit: "cmH2O"
                     from: 0
@@ -175,9 +181,23 @@ Item {
                     columnSpacing: Spacing.sm
                     rowSpacing: Spacing.xs
 
-                    LimbHeading { text: qsTr("Inflation Limb"); tint: Colors.success }
-                    LimbHeading { text: qsTr("Deflation Limb"); tint: Colors.accent }
-                    LimbHeading { text: qsTr("Paw");            tint: Colors.warning }
+                    LimbHeading {
+                        text: qsTr("Inflation")
+                        tint: Colors.success
+                        Accessible.name: qsTr("Inflation limb")
+                    }
+
+                    LimbHeading {
+                        text: qsTr("Deflation")
+                        tint: Colors.accent
+                        Accessible.name: qsTr("Deflation limb")
+                    }
+
+                    LimbHeading {
+                        text: qsTr("Paw")
+                        tint: Colors.warning
+                        Accessible.name: qsTr("Airway pressure")
+                    }
 
                     LimbCell { value: pane.limb("inflation", 0); unit: "ml" }
                     LimbCell { value: pane.limb("deflation", 0); unit: "ml" }
@@ -308,6 +328,7 @@ Item {
                 // pressure is holding at the end of expiration.
                 RowLayout {
                     Layout.fillWidth: true
+                    Layout.fillHeight: false
                     spacing: Spacing.md
 
                     PointReadout { label: qsTr("LIP"); glyph: "\u25BC"; value: pane.result("lip");   unit: "cmH2O" }

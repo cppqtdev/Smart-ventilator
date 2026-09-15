@@ -158,11 +158,15 @@ Panel {
                     opacity: cursor.modelData.active ? 1.0 : 0.55
                 }
 
+                // The handle sits at the foot of the line, on the pressure
+                // axis it moves along. At the top it landed on the chart
+                // title and the volume scale.
+                //
                 // The grab target is wider than the line, because a one pixel
                 // line is not something a gloved finger can take hold of.
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
                     width: Metrics.px(18)
                     height: Metrics.px(18)
                     radius: width / 2
