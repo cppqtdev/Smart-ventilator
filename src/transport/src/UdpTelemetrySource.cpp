@@ -41,7 +41,7 @@ QByteArray frameHeader(quint32 frameId, int length)
 } // namespace
 
 UdpTelemetrySource::UdpTelemetrySource(const CanDatabase &database,
-                                       const Endpoint &endpoint,
+                                       const UdpEndpoint &endpoint,
                                        QObject *parent)
     : ITelemetrySource(parent)
     , m_database(database)

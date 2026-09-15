@@ -30,19 +30,25 @@ namespace sv::transport {
  *   [4]    payload length, 0 to 8
  *   [5..]  payload
  */
+// Declared at namespace scope: a nested struct with default member
+// initializers cannot be used as a default argument inside the class that
+// encloses it, because the initializers are not complete until the class is.
+struct UdpEndpoint
+{
+    QHostAddress address = QHostAddress::LocalHost;
+    quint16 listenPort = 35200;
+    quint16 sendPort = 35201;
+};
+
 class UdpTelemetrySource : public ITelemetrySource
 {
     Q_OBJECT
 
 public:
-    struct Endpoint {
-        QHostAddress address = QHostAddress::LocalHost;
-        quint16 listenPort = 35200;
-        quint16 sendPort = 35201;
-    };
+    using Endpoint = UdpEndpoint;
 
     explicit UdpTelemetrySource(const CanDatabase &database,
-                                const Endpoint &endpoint = Endpoint{},
+                                const UdpEndpoint &endpoint = UdpEndpoint{},
                                 QObject *parent = nullptr);
     ~UdpTelemetrySource() override;
 
@@ -71,7 +77,7 @@ private:
     void setConnected(bool connected);
 
     CanDatabase m_database;
-    Endpoint m_endpoint;
+    UdpEndpoint m_endpoint;
     QUdpSocket m_socket;
     QTimer m_heartbeat;
 

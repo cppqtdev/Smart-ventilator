@@ -45,6 +45,9 @@ run "qrc: URLs against the resource file" \
 run "layout tokens against the reference screens" \
     python3 "$root/scripts/reference_geometry.py"
 
+run "nested structs used as default arguments" \
+    python3 "$root/scripts/nested_default_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else
