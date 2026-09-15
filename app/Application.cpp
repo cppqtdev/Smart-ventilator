@@ -4,19 +4,13 @@
 
 #include "Application.h"
 
-#include <sv/infrastructure/DatabaseManager.h>
 #include <sv/infrastructure/SimulatorAdapter.h>
-#include <sv/infrastructure/SimulatedBattery.h>
 #include <sv/services/SettingsValidator.h>
 #include <sv/services/WaveformEngine.h>
 #include <sv/services/BreathSimulator.h>
 #include <sv/services/DiagnosticsService.h>
 #include <sv/services/CalibrationService.h>
-#include <sv/backend/VentilatorFacade.h>
-#include <sv/backend/BatteryFacade.h>
-#include <sv/backend/DiagnosticsFacade.h>
 #include <sv/render/WaveformView.h>
-#include <QStandardPaths>
 
 #include <sv/common/AppIdentity.h>
 #include <sv/common/LogBuffer.h>
@@ -52,13 +46,6 @@ bool Application::initialize()
     if (!dbReady)
         qCritical() << "Database initialization failed:" << m_legacyDatabase->lastError();
 
-    // The infrastructure manager is deliberately not initialised. Every
-    // controller on this device persists through the legacy manager, and the
-    // two open the same file under the same connection name, so initialising
-    // both put two writer threads on one handle that is not thread safe. The
-    // only thing holding the infrastructure manager is VentilatorFacade,
-    // which no screen reaches; it is next in line to go.
-
     createServices();
     createLegacyControllers();
 
@@ -74,7 +61,6 @@ bool Application::initialize()
         m_alarmController->setDetail(QStringLiteral("Audit trail unavailable"));
     }
 
-    createFacades();
     connectSignals();
     registerQmlTypes();
     registerContextProperties();
@@ -85,9 +71,7 @@ bool Application::initialize()
 void Application::createInfrastructure()
 {
     m_legacyDatabase = std::make_unique<DatabaseManager>();
-    m_database = std::make_unique<sv::infrastructure::DatabaseManager>();
     m_simulator = std::make_unique<sv::infrastructure::SimulatorAdapter>();
-    m_battery = std::make_unique<sv::infrastructure::SimulatedBattery>();
 }
 
 void Application::createServices()
@@ -98,24 +82,6 @@ void Application::createServices()
     m_diagnosticsService = std::make_unique<sv::services::DiagnosticsService>();
     m_calibrationService = std::make_unique<sv::services::CalibrationService>();
     m_calibrationService->attach(m_legacyDatabase.get());
-}
-
-void Application::createFacades()
-{
-    m_ventilatorFacade = std::make_unique<sv::backend::VentilatorFacade>(
-        m_database.get(),
-        m_alarmController.get(),
-        m_simulator.get(),
-        m_validator.get(),
-        m_waveforms.get(),
-        m_breathSim.get());
-
-    m_batteryFacade = std::make_unique<sv::backend::BatteryFacade>(
-        m_battery.get());
-
-    m_diagnosticsFacade = std::make_unique<sv::backend::DiagnosticsFacade>(
-        m_diagnosticsService.get(),
-        m_calibrationService.get());
 }
 
 void Application::createLegacyControllers()
@@ -163,8 +129,6 @@ void Application::connectSignals()
         m_ventilationCatalog->setPatientCategory(m_patientController->category());
         m_ventilatorController->setPatientProfile(m_patientController->category(),
                                                   m_patientController->ibw());
-        m_ventilatorFacade->setPatientContext(m_patientController->category());
-        m_ventilatorFacade->setPatientIbwKg(m_patientController->ibw());
     };
     updatePatientContext();
     connect(m_patientController.get(), &PatientController::patientChanged,
@@ -176,7 +140,6 @@ void Application::connectSignals()
             ? m_userController->currentUser()
             : QStringLiteral("unauthenticated");
         m_ventilatorController->setOperatorId(opId);
-        m_ventilatorFacade->setOperatorId(opId);
     });
 
     connect(m_legacyDatabase.get(), &DatabaseManager::errorOccurred,
@@ -207,16 +170,6 @@ void Application::connectSignals()
                                           m_ventilatorController->backendState());
         } else {
             m_alarmController->clearCondition(QStringLiteral("legacy.backend.backend disconnected"));
-        }
-    });
-
-    connect(m_ventilatorFacade.get(), &sv::backend::VentilatorFacade::backendStateChanged,
-            this, [this]() {
-        if (m_ventilatorFacade->degradedMode()) {
-            m_alarmController->raiseAlarm(QStringLiteral("Critical"),
-                                          QStringLiteral("Backend"),
-                                          QStringLiteral("Backend Disconnected"),
-                                          m_ventilatorFacade->backendState());
         }
     });
 }
@@ -252,11 +205,6 @@ void Application::registerContextProperties()
                             m_monitoringPresenter.get());
     ctx->setContextProperty(QStringLiteral("calibrationService"),
                             m_calibrationService.get());
-
-    // New backend facades available via context and QML_ELEMENT
-    ctx->setContextProperty(QStringLiteral("ventilatorFacade"), m_ventilatorFacade.get());
-    ctx->setContextProperty(QStringLiteral("batteryFacade"), m_batteryFacade.get());
-    ctx->setContextProperty(QStringLiteral("diagnosticsFacade"), m_diagnosticsFacade.get());
 }
 
 void Application::loadQml()

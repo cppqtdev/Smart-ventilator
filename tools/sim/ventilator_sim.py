@@ -34,6 +34,7 @@ Type commands at the prompt while it runs:
     clear <name>         clear one fault, or 'clear all'
     apnea <seconds>      stop delivering breaths for a while
     battery <percent>    set the battery reading
+    fault mains          pull the wall supply; the battery then drains
     quit
 """
 
@@ -110,6 +111,7 @@ STATUS = Message(0x124, "VentStatus", 8, (
     Signal("batteryPercent", 0, 8, False, 1.0, 0.0, 0.0, 100.0),
     Signal("deviceFault", 8, 32, False, 1.0, 0.0, 0.0, 4294967295.0),
     Signal("deviceState", 40, 8, False, 1.0, 0.0, 0.0, 255.0),
+    Signal("batteryMinutes", 48, 16, False, 1.0, 0.0, 0.0, 65535.0),
 ))
 
 SETPOINTS = Message(0x200, "VentSetpoints", 8, (
@@ -151,6 +153,9 @@ FAULT_BITS = {
     "o2cell": 1 << 5,
     "battery": 1 << 6,
     "fan": 1 << 7,
+    # Not a fault. The mains has gone and the device is on its own battery,
+    # which the interface has to annunciate and show a runtime for.
+    "mains": 1 << 8,
 }
 
 
@@ -206,6 +211,7 @@ class Device:
     ventilating: bool = False
     fault_bits: int = 0
     battery: float = 100.0
+    battery_minutes: int = 0xFFFF
     apnea_until: float = 0.0
     forced: dict = field(default_factory=dict)
 
@@ -304,6 +310,25 @@ class Device:
         else:
             self.spo2 = min(99.0, self.spo2 + 0.4)
             self.etco2 = min(45.0, self.etco2 + 0.6)
+
+    def on_mains(self) -> bool:
+        return not (self.fault_bits & FAULT_BITS["mains"])
+
+    def step_power(self, dt: float) -> None:
+        """Charges on the mains and drains off it, reporting the runtime.
+
+        A ventilator that shows a full battery for ever tells the operator
+        nothing about how long they have after the wall supply goes.
+        """
+        if self.on_mains():
+            self.battery = min(100.0, self.battery + dt * 0.35)
+            self.battery_minutes = 0xFFFF
+            return
+
+        # Roughly a three hour battery at rest, less while ventilating.
+        drain_per_minute = 0.65 if self.ventilating else 0.45
+        self.battery = max(0.0, self.battery - dt * drain_per_minute / 60.0)
+        self.battery_minutes = int(self.battery / max(0.01, drain_per_minute))
 
     def apply_setpoints(self, values: dict) -> None:
         self.setpoints.fio2 = values.get("setFio2", self.setpoints.fio2)
@@ -424,6 +449,7 @@ class Runner:
             "batteryPercent": device.value("batteryPercent", device.battery),
             "deviceFault": device.fault_bits,
             "deviceState": 1 if device.ventilating else 0,
+            "batteryMinutes": device.battery_minutes,
         })
 
     def handle_prompt(self, line: str) -> None:
@@ -442,7 +468,9 @@ class Runner:
             print(f"  setpoints   : {device.setpoints}")
             print(f"  faults      : {self.fault_names() or 'none'}")
             print(f"  forced      : {device.forced or 'none'}")
-            print(f"  battery     : {device.battery:.0f}%")
+            print(f"  battery     : {device.battery:.0f}%"
+                  + ("" if device.on_mains()
+                     else f", {device.battery_minutes} min left, on battery"))
         elif verb == "set" and len(parts) == 3:
             device.forced[parts[1]] = float(parts[2])
             print(f"  {parts[1]} forced to {parts[2]}")
@@ -509,6 +537,7 @@ class Runner:
                 self.handle_prompt(self.commands.get())
 
             self.send(WAVEFORM, self.device.step(dt, now))
+            self.device.step_power(dt)
 
             if now >= next_slow:
                 self.publish_slow()

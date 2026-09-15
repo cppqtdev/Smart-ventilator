@@ -153,11 +153,14 @@ Rectangle {
                 }
 
                 PowerIndicator {
-                    percentage: header.batteryData ? header.batteryData.percentage : 100
-                    acConnected: header.batteryData ? header.batteryData.acPower : true
-                    charging: header.batteryData ? header.batteryData.isCharging : false
+                    percentage: header.batteryData
+                                ? header.batteryData.devicePowerPercent : -1
+                    acConnected: header.batteryData
+                                 ? header.batteryData.mainsConnected : true
+                    charging: header.batteryData
+                              ? header.batteryData.batteryCharging : false
                     runtimeMinutes: header.batteryData
-                                    ? header.batteryData.runtimeMinutes : -1
+                                    ? header.batteryData.batteryRuntimeMinutes : -1
                 }
 
                 IconButton {

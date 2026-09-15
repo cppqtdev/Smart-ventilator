@@ -22,9 +22,7 @@ class VentilatorController;
 class DatabaseManager;
 
 namespace sv::infrastructure {
-class DatabaseManager;
 class SimulatorAdapter;
-class SimulatedBattery;
 }
 
 namespace sv::services {
@@ -33,12 +31,6 @@ class WaveformEngine;
 class BreathSimulator;
 class DiagnosticsService;
 class CalibrationService;
-}
-
-namespace sv::backend {
-class VentilatorFacade;
-class BatteryFacade;
-class DiagnosticsFacade;
 }
 
 class Application : public QObject
@@ -55,7 +47,6 @@ public:
 private:
     void createInfrastructure();
     void createServices();
-    void createFacades();
     void createLegacyControllers();
     void registerQmlTypes();
     void registerContextProperties();
@@ -64,9 +55,7 @@ private:
 
     QQmlApplicationEngine m_engine;
 
-    std::unique_ptr<sv::infrastructure::DatabaseManager> m_database;
     std::unique_ptr<sv::infrastructure::SimulatorAdapter> m_simulator;
-    std::unique_ptr<sv::infrastructure::SimulatedBattery> m_battery;
 
     std::unique_ptr<DatabaseManager> m_legacyDatabase;
 
@@ -75,10 +64,6 @@ private:
     std::unique_ptr<sv::services::BreathSimulator> m_breathSim;
     std::unique_ptr<sv::services::DiagnosticsService> m_diagnosticsService;
     std::unique_ptr<sv::services::CalibrationService> m_calibrationService;
-
-    std::unique_ptr<sv::backend::VentilatorFacade> m_ventilatorFacade;
-    std::unique_ptr<sv::backend::BatteryFacade> m_batteryFacade;
-    std::unique_ptr<sv::backend::DiagnosticsFacade> m_diagnosticsFacade;
 
     std::unique_ptr<AppSettings> m_appSettings;
     std::unique_ptr<AlarmController> m_alarmController;

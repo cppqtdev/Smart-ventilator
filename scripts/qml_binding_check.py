@@ -40,7 +40,9 @@ BINDINGS = {
     # Screens hold the catalogue in a local `catalog` property; including it
     # here is what actually exercises the mode/parameter bindings.
     'catalog':            'src/controllers/VentilationCatalog.h',
-    'batteryData':        'src/backend/include/sv/backend/BatteryFacade.h',
+    # Power state arrives from the device on the status frame, so the
+    # controller is where it lives.
+    'batteryData':        'src/controllers/VentilatorController.h',
     'clockData':          'src/controllers/ClockController.h',
     'clockController':    'src/controllers/ClockController.h',
     'eventData':          'src/controllers/EventController.h',
@@ -85,7 +87,7 @@ def main() -> int:
     problems = []
 
     for base, dirs, files in os.walk(ROOT):
-        dirs[:] = [d for d in dirs if d not in {'_legacy', 'build', '.git', 'node_modules'}]
+        dirs[:] = [d for d in dirs if d not in {'_legacy', '_to_delete', 'build', '.git', 'node_modules'}]
         for f in files:
             if not f.endswith('.qml'):
                 continue

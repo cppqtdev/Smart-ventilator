@@ -39,6 +39,11 @@ inline constexpr auto batteryPercent = "batteryPercent";
 inline constexpr auto deviceFault = "deviceFault";
 inline constexpr auto deviceState = "deviceState";
 
+// Remaining runtime on battery, in minutes. 65535 means the device does not
+// know, which is not the same as nearly empty and must not read as it.
+inline constexpr auto batteryMinutes = "batteryMinutes";
+inline constexpr quint16 batteryMinutesUnknown = 65535;
+
 // Setpoints travel the other way, from the interface to the device. They
 // carry their own names so a frame lookup by signal name cannot confuse a
 // commanded value with a measured one.

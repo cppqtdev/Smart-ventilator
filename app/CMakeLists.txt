@@ -21,7 +21,6 @@ target_link_libraries(SmartVentilator PRIVATE
     sv_infrastructure
     sv_services
     sv_models
-    sv_backend
     sv_render
     sv_presentation
     sv_transport

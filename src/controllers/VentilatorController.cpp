@@ -138,6 +138,16 @@ int VentilatorController::alarmHighPressure() const { return m_alarmHighPressure
 int VentilatorController::alarmLowPressure() const { return m_alarmLowPressure; }
 int VentilatorController::alarmApneaTime() const { return m_alarmApneaTime; }
 int VentilatorController::apneaSeconds() const { return m_apneaSeconds; }
+bool VentilatorController::mainsConnected() const { return m_mainsConnected; }
+int VentilatorController::batteryRuntimeMinutes() const { return m_batteryRuntimeMinutes; }
+
+bool VentilatorController::batteryCharging() const
+{
+    // Charging is not something the device reports as its own bit, so it is
+    // the one state the two it does report can only mean together: on the
+    // mains, with a battery that is not yet full.
+    return m_mainsConnected && m_devicePowerPercent >= 0 && m_devicePowerPercent < 100;
+}
 int VentilatorController::alarmLowVt() const { return m_alarmLowVt; }
 int VentilatorController::alarmHighMv() const { return m_alarmHighMv; }
 int VentilatorController::alarmLowSpo2() const { return m_alarmLowSpo2; }
@@ -1489,6 +1499,16 @@ void VentilatorController::applyTelemetry(const QVariantMap &values)
         measurements = true;
     }
 
+    const auto runtime = values.constFind(QString::fromLatin1("batteryMinutes"));
+    if (runtime != values.constEnd()) {
+        // The frame carries 65535 for "the device does not know". That is not
+        // the same as nearly empty and must not be shown as a runtime.
+        constexpr int kRuntimeUnknown = 65535;
+        const int minutes = runtime.value().toInt();
+        m_batteryRuntimeMinutes = minutes >= kRuntimeUnknown ? -1 : minutes;
+        measurements = true;
+    }
+
     const auto faults = values.constFind(QString::fromLatin1("deviceFault"));
     if (faults != values.constEnd())
         applyDeviceFaults(quint32(faults.value().toULongLong()));
@@ -1589,11 +1609,16 @@ void VentilatorController::applyDeviceFaults(quint32 bits)
         {1u << 4, "device.flowsensor", "Warning",  "Sensor",  "Flow sensor fault"},
         {1u << 5, "device.o2cell",     "Warning",  "Sensor",  "Oxygen cell fault"},
         {1u << 6, "device.battery",    "Warning",  "Power",   "Battery fault"},
-        {1u << 7, "device.fan",        "Advisory", "Cooling", "Cooling fan fault"}
+        {1u << 7, "device.fan",        "Advisory", "Cooling", "Cooling fan fault"},
+
+        // Losing the mains is not a fault, but it is a technical alarm
+        // condition: the device is now running on a battery that will empty.
+        {1u << 8, "device.mains",      "Warning",  "Power",   "Running on battery"}
     };
 
     const quint32 previous = m_deviceFaults;
     m_deviceFaults = bits;
+    m_mainsConnected = (bits & (1u << 8)) == 0;
 
     if (m_alarmController == nullptr)
         return;

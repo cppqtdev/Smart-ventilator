@@ -112,6 +112,9 @@ class VentilatorController : public QObject
     Q_PROPERTY(double measuredFio2 READ measuredFio2 NOTIFY measurementsChanged)
     Q_PROPERTY(double leakPercent READ leakPercent NOTIFY measurementsChanged)
     Q_PROPERTY(int devicePowerPercent READ devicePowerPercent NOTIFY measurementsChanged)
+    Q_PROPERTY(bool mainsConnected READ mainsConnected NOTIFY measurementsChanged)
+    Q_PROPERTY(bool batteryCharging READ batteryCharging NOTIFY measurementsChanged)
+    Q_PROPERTY(int batteryRuntimeMinutes READ batteryRuntimeMinutes NOTIFY measurementsChanged)
     Q_PROPERTY(quint32 deviceFaults READ deviceFaults NOTIFY measurementsChanged)
     Q_PROPERTY(bool holdInProgress READ holdInProgress NOTIFY measurementsChanged)
 
@@ -378,6 +381,15 @@ public:
     /** @return Battery the device reports, or -1 when it reports none. */
     int devicePowerPercent() const;
 
+    /** @return False once the device reports the mains supply has gone. */
+    bool mainsConnected() const;
+
+    /** @return True on mains with a battery that is not yet full. */
+    bool batteryCharging() const;
+
+    /** @return Minutes the device says it has left, or -1 when it does not know. */
+    int batteryRuntimeMinutes() const;
+
     /** @return The device fault bit field from frame 0x124. */
     quint32 deviceFaults() const;
 
@@ -608,6 +620,8 @@ private:
     double m_measuredFio2 = 0;
     double m_leakPercent = 0;
     int m_devicePowerPercent = -1;
+    int m_batteryRuntimeMinutes = -1;
+    bool m_mainsConnected = true;
     quint32 m_deviceFaults = 0;
     double m_workOfBreathing = 0;
     double m_stressIndex = 1.0;

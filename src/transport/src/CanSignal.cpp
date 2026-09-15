@@ -125,7 +125,10 @@ CanDatabase CanDatabase::defaultDatabase()
     database.insert(CanMessage{0x124, QStringLiteral("VentStatus"), 8, {
         {QString::fromLatin1(batteryPercent), 0, 8, ByteOrder::Intel, false, 1.0, 0.0, 0.0, 100.0, QStringLiteral("%")},
         {QString::fromLatin1(deviceFault), 8, 32, ByteOrder::Intel, false, 1.0, 0.0, 0.0, 4294967295.0, QString()},
-        {QString::fromLatin1(deviceState), 40, 8, ByteOrder::Intel, false, 1.0, 0.0, 0.0, 255.0, QString()}
+        {QString::fromLatin1(deviceState), 40, 8, ByteOrder::Intel, false, 1.0, 0.0, 0.0, 255.0, QString()},
+        // Remaining runtime on battery. 65535 means the device does not know,
+        // which is not the same as nearly empty and must not read as it.
+        {QString::fromLatin1(batteryMinutes), 48, 16, ByteOrder::Intel, false, 1.0, 0.0, 0.0, 65535.0, QStringLiteral("min")}
     }});
 
     // 0x200 and 0x201 travel from the interface to the device: the current

@@ -32,7 +32,7 @@ import sys
 ROOT = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 THEME_DIR = os.path.join(ROOT, "ui", "Theme")
 ICON_DIR = os.path.join(ROOT, "ui", "Assets", "icons")
-SKIP_DIRS = {"_legacy", "build", ".git", "node_modules"}
+SKIP_DIRS = {"_legacy", "_to_delete", "build", ".git", "node_modules"}
 
 PAIRS = {"}": "{", "]": "[", ")": "("}
 OPENERS = set(PAIRS.values())

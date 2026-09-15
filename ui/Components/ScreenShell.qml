@@ -65,6 +65,9 @@ Item {
             Layout.preferredHeight: Metrics.headerHeight
 
             mode: shell.presenter ? shell.presenter.mode : "---"
+            acPower: ventilatorController.mainsConnected
+            batteryPercent: ventilatorController.devicePowerPercent
+            batteryCharging: ventilatorController.batteryCharging
             patientCategory: shell.presenter ? shell.presenter.patient.category : "adult"
             nonInvasive: shell.presenter ? shell.presenter.nonInvasive : false
             spontaneous: shell.presenter ? shell.presenter.spontaneous : false

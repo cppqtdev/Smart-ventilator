@@ -108,7 +108,7 @@ ApplicationWindow {
 
         alarmData: root.alarmModel
         clockData: clockController
-        batteryData: typeof batteryFacade !== "undefined" ? batteryFacade : null
+        batteryData: root.ventilatorModel
         patientData: root.patientModel
 
         alarmPriority: root.alarmPriority
