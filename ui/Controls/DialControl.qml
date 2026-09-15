@@ -47,6 +47,12 @@ Item {
     readonly property int stepGap: Math.max(2, Math.round(dial.ringSize * 0.036))
     readonly property int carveGap: Math.max(4, Math.round(dial.ringSize * 0.134))
 
+    // The disc eats the inner edge of the button, so the middle of what is
+    // left is not the middle of the rectangle. The glyph moves outward by
+    // half the bite to sit in the centre of the part that still shows.
+    readonly property int glyphShift:
+        Math.round((dial.carveGap - dial.stepGap) / 2)
+
     readonly property real sizeRatio: dial.ringSize / Math.max(1, Metrics.dialSize)
 
     implicitWidth: Math.round(Metrics.dialSize * dial.assemblyRatio)
@@ -93,6 +99,7 @@ Item {
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: dial.stepWidth
             buttonHeight: dial.stepHeight
+            glyphOffset: -dial.glyphShift
             symbol: "−"
             onStepped: dial.propose(-1)
         }
@@ -104,6 +111,7 @@ Item {
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: dial.stepWidth
             buttonHeight: dial.stepHeight
+            glyphOffset: dial.glyphShift
             symbol: "+"
             onStepped: dial.propose(1)
         }
@@ -166,6 +174,7 @@ Item {
         property int buttonWidth: Metrics.dialStepWidth
         property int buttonHeight: Metrics.dialStepHeight
         property int glyphSize: Typography.subtitle
+        property int glyphOffset: 0
 
         signal stepped()
 
@@ -185,7 +194,9 @@ Item {
         }
 
         Text {
-            anchors.centerIn: parent
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: step.glyphOffset
             text: step.symbol
             color: Colors.textPrimary
             font.family: Typography.monoFamily

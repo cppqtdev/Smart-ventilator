@@ -38,6 +38,12 @@ Item {
     readonly property int stepGap: Math.max(2, Math.round(spinner.ringSize * 0.036))
     readonly property int carveGap: Math.max(4, Math.round(spinner.ringSize * 0.134))
 
+    // The disc eats the inner edge of the button, so the middle of what is
+    // left is not the middle of the rectangle. The glyph moves outward by
+    // half the bite to sit in the centre of the part that still shows.
+    readonly property int glyphShift:
+        Math.round((spinner.carveGap - spinner.stepGap) / 2)
+
     // Text.Fit only ever shrinks, so a bigger ring would keep the reference
     // sized number in the middle of it. The value grows with the ring and
     // Fit is left to handle the four digit year.
@@ -81,6 +87,7 @@ Item {
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: spinner.stepWidth
             buttonHeight: spinner.stepHeight
+            glyphOffset: -spinner.glyphShift
             symbol: "−"
             onStepped: spinner.apply(-1)
         }
@@ -92,6 +99,7 @@ Item {
             anchors.verticalCenter: ring.verticalCenter
             buttonWidth: spinner.stepWidth
             buttonHeight: spinner.stepHeight
+            glyphOffset: spinner.glyphShift
             symbol: "+"
             onStepped: spinner.apply(1)
         }
@@ -162,6 +170,7 @@ Item {
         property string symbol: "+"
         property int buttonWidth: Metrics.px(30)
         property int buttonHeight: Metrics.px(58)
+        property int glyphOffset: 0
 
         signal stepped()
 
@@ -179,7 +188,9 @@ Item {
         }
 
         Text {
-            anchors.centerIn: parent
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: step.glyphOffset
             text: step.symbol
             color: Colors.textPrimary
             font.family: Typography.monoFamily
