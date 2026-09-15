@@ -21,7 +21,22 @@ Item {
     signal settingsRequested()
 
     property bool showReference: false
+
+    // Two cursors, as the reference draws them. The chips choose which one
+    // the dial moves; either can also be dragged on the chart.
     property real cursorPressure: 0
+    property real cursorPressureTwo: 0
+
+    readonly property real activeCursorPressure:
+        pane.cursor === "2" ? pane.cursorPressureTwo : pane.cursorPressure
+
+    function setActiveCursor(value) {
+        var bounded = Math.max(0, Math.min(60, value))
+        if (pane.cursor === "2")
+            pane.cursorPressureTwo = bounded
+        else
+            pane.cursorPressure = bounded
+    }
 
     readonly property bool pvRunning:
         pane.ventilatorData ? pane.ventilatorData.pvToolRunning : false
@@ -56,7 +71,7 @@ Item {
     }
 
     function limb(which, row) {
-        var pressure = row === 0 ? pane.cursorPressure : 40
+        var pressure = row === 0 ? pane.activeCursorPressure : 40
         if (which === "paw")
             return pane.pvInflation.length > 0 ? pressure : undefined
         var source = which === "inflation" ? pane.pvInflation : pane.pvDeflation
@@ -147,8 +162,8 @@ Item {
                     from: 0
                     to: 60
                     decimals: 0
-                    value: pane.cursorPressure
-                    onStepRequested: function (proposed) { pane.cursorPressure = proposed }
+                    value: pane.activeCursorPressure
+                    onStepRequested: function (proposed) { pane.setActiveCursor(proposed) }
                 }
 
                 // Inflation limb, deflation limb and the pressure each pair
@@ -268,6 +283,16 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: qsTr("P-V Loop")
+                    cursors: [
+                        { value: pane.cursorPressure, label: "1",
+                          active: pane.cursor === "1" },
+                        { value: pane.cursorPressureTwo, label: "2",
+                          active: pane.cursor === "2" }
+                    ]
+                    onCursorMoved: function (index, value) {
+                        pane.cursor = index === 1 ? "2" : "1"
+                        pane.setActiveCursor(value)
+                    }
                     xLabel: "Paw cmH2O"
                     yLabel: "V ml"
                     xMinimum: 0

@@ -22,6 +22,13 @@ Panel {
     property real yMaximum: 60
     property color traceColor: Colors.cyan
 
+    // Draggable cursors, as { value, label, active }. The chart owns the
+    // plot margins, so it is the only thing that can turn a value on the x
+    // axis into a position the operator can grab.
+    property var cursors: []
+
+    signal cursorMoved(int index, real value)
+
     Text {
         anchors.left: parent.left
         anchors.top: parent.top
@@ -117,6 +124,75 @@ Panel {
             ctx.beginPath()
             ctx.arc(latest.x, latest.y, 4, 0, Math.PI * 2)
             ctx.fill()
+        }
+
+        function xForValue(value) {
+            var span = Math.max(0.1, root.xMaximum - root.xMinimum)
+            return Math.max(0, Math.min(1, (value - root.xMinimum) / span)) * width
+        }
+
+        function valueForX(x) {
+            var span = Math.max(0.1, root.xMaximum - root.xMinimum)
+            return root.xMinimum + Math.max(0, Math.min(1, x / Math.max(1, width))) * span
+        }
+
+        Repeater {
+            model: root.cursors
+
+            delegate: Item {
+                id: cursor
+
+                required property var modelData
+                required property int index
+
+                x: chart.xForValue(cursor.modelData.value) - width / 2
+                y: 0
+                width: Metrics.px(22)
+                height: chart.height
+
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.max(1, Metrics.borderWidth)
+                    height: parent.height
+                    color: cursor.modelData.active ? Colors.warning : Colors.textSecondary
+                    opacity: cursor.modelData.active ? 1.0 : 0.55
+                }
+
+                // The grab target is wider than the line, because a one pixel
+                // line is not something a gloved finger can take hold of.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    width: Metrics.px(18)
+                    height: Metrics.px(18)
+                    radius: width / 2
+                    color: cursor.modelData.active ? Colors.warning : Colors.surfaceRaised
+                    border.width: Metrics.borderWidth
+                    border.color: Colors.line
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: cursor.modelData.label !== undefined
+                              ? cursor.modelData.label : ""
+                        color: Colors.textPrimary
+                        font.family: Typography.monoFamily
+                        font.pixelSize: Typography.micro
+                        font.weight: Typography.bold
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.SizeHorCursor
+
+                    onPositionChanged: function (mouse) {
+                        var centre = cursor.x + cursor.width / 2 + mouse.x - cursor.width / 2
+                        root.cursorMoved(cursor.index, chart.valueForX(centre))
+                    }
+                    onPressed: root.cursorMoved(cursor.index,
+                                                chart.valueForX(cursor.x + cursor.width / 2))
+                }
+            }
         }
 
         Connections {
