@@ -60,13 +60,19 @@ Item {
             }
         }
 
+        // The sub-tab height and lettering, like the chips at the top of the
+        // pane, so the one button on the screen is not the odd one out.
         AppButton {
             Layout.alignment: Qt.AlignLeft
-            Layout.preferredHeight: Metrics.px(30)
-            Layout.preferredWidth: Math.max(Metrics.px(170), implicitWidth)
+            Layout.preferredHeight: Metrics.navHeight
+            Layout.preferredWidth: Math.max(Metrics.px(240), implicitWidth)
             text: screen.choosingContent ? qsTr("Back to layouts")
                                          : qsTr("Choose cell content")
             buttonVariant: AppButton.Success
+            radius: Radius.small
+            fontSize: Typography.tabLabel
+            fontFamily: Typography.monoFamily
+            fontWeight: Typography.bold
             onClicked: screen.choosingContent = !screen.choosingContent
         }
 
