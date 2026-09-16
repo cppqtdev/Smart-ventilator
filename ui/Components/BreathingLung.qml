@@ -21,6 +21,12 @@ Item {
     property var presenter
     property bool frozen: false
 
+    // The picture is drawn clear of whatever sits under it. A breath grows
+    // it downward - the scale below is anchored near the top - so without
+    // this the lung touches the readouts at end inspiration and only at end
+    // inspiration, which is the worst kind of overlap to find.
+    property int bottomPadding: Spacing.lg
+
     readonly property bool ventilating: lung.presenter ? lung.presenter.ventilating : false
 
     readonly property int breathRate: {
@@ -67,9 +73,19 @@ Item {
         id: picture
 
         anchors.fill: parent
+        anchors.bottomMargin: lung.bottomPadding
         source: "qrc:/ui/Assets/lungs.png"
         fillMode: Image.PreserveAspectFit
+
+        // The asset is square and far larger than any box it is drawn in, so
+        // it is decoded at the size actually needed rather than at full
+        // resolution, and mipmapped: a plain bilinear filter reducing an
+        // image by more than half drops every other row of pixels, which is
+        // what makes fine detail like the vessels crawl and sparkle.
+        sourceSize.width: Math.max(1, Math.round(Math.min(lung.width, lung.height)))
+        sourceSize.height: picture.sourceSize.width
         smooth: true
+        mipmap: true
         asynchronous: true
 
         // Inflation is mostly downward and outward, the way a chest moves,
