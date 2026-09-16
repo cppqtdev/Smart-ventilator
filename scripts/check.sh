@@ -66,6 +66,9 @@ run "one typeface across the interface" \
 run "every button on one of the three heights" \
     python3 "$root/scripts/button_height_check.py"
 
+run "lengths the screen scale never reaches" \
+    python3 "$root/scripts/scale_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else

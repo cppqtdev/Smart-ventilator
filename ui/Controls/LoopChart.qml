@@ -32,7 +32,7 @@ Panel {
     Text {
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.margins: 16
+        anchors.margins: Spacing.lg
         text: root.title
         color: root.traceColor
         font.pixelSize: Typography.subtitle
@@ -61,10 +61,10 @@ Panel {
     Canvas {
         id: chart
         anchors.fill: parent
-        anchors.leftMargin: 58
-        anchors.rightMargin: 24
-        anchors.topMargin: 52
-        anchors.bottomMargin: 42
+        anchors.leftMargin: Metrics.px(58)
+        anchors.rightMargin: Spacing.xxl
+        anchors.topMargin: Metrics.px(52)
+        anchors.bottomMargin: Metrics.px(42)
         renderStrategy: Canvas.Cooperative
 
         onPaint: {

@@ -42,7 +42,7 @@ Control {
                     id: warningContent
                     anchors.fill: parent
                     anchors.margins: Spacing.cardPadding
-                    spacing: 24
+                    spacing: Spacing.xxl
 
                     Text {
                         Layout.fillWidth: true

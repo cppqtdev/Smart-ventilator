@@ -10,7 +10,6 @@ import QtQuick.Layouts
 import "../Theme"
 import "../Components"
 import "../Controls"
-import "../Controls"
 
 Control {
     id: root
@@ -34,14 +33,14 @@ Control {
         // Emergency banner
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 64
+            Layout.preferredHeight: Metrics.px(64)
             radius: Radius.small
             color: Colors.critical
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 24
-                anchors.rightMargin: 24
+                anchors.leftMargin: Spacing.xxl
+                anchors.rightMargin: Spacing.xxl
 
                 Text {
                     Layout.fillWidth: true
@@ -126,7 +125,7 @@ Control {
             // Critical vitals (right, narrow column)
             ColumnLayout {
                 Layout.fillWidth: false
-                Layout.preferredWidth: 260
+                Layout.preferredWidth: Metrics.px(260)
                 Layout.fillHeight: true
                 spacing: Spacing.screenMargin_8
 
