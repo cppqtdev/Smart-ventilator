@@ -6,16 +6,29 @@
 // neonatal patient left adult settings loaded, validateStart() refused, and
 // nothing on screen said why.
 //
-// A start now needs an admitted patient. These tests predate that gate and
-// were setting the category and the body weight without admitting anyone,
-// which is exactly the state the gate exists to refuse, so every one of them
-// was refused. They admit a patient where a start is meant to succeed, and
-// startRefusedUntilAPatientIsAdmitted covers the gate itself.
+// A start now needs two things these tests predate: a patient admitted, and
+// the pre-use check passed. Setting the category and the body weight is
+// neither, which is exactly the state the gates exist to refuse, so every
+// start in here was refused. readyToStart() puts a controller in the state a
+// bedside is in before ventilation, and each gate has its own test so one
+// cannot hide behind the other.
 
 #include "../../src/controllers/VentilatorController.h"
 
 #include <QSignalSpy>
 #include <QTest>
+
+namespace {
+
+// What a bedside looks like the moment before ventilation starts: a patient
+// admitted, and the circuit checked.
+void readyToStart(VentilatorController &controller, const QString &category, int ibw)
+{
+    controller.acceptPatient(category, ibw);
+    controller.setPreUseCheckPassed(true);
+}
+
+} // namespace
 
 class TestVentilatorStart : public QObject
 {
@@ -23,6 +36,7 @@ class TestVentilatorStart : public QObject
 
 private slots:
     void startRefusedUntilAPatientIsAdmitted();
+    void startRefusedUntilThePreUseCheckPasses();
     void startsFromTheDefaultAdultState();
     void startsAfterSwitchingToEveryCategory_data();
     void startsAfterSwitchingToEveryCategory();
@@ -47,15 +61,36 @@ private slots:
 
 void TestVentilatorStart::startRefusedUntilAPatientIsAdmitted()
 {
-    // The gate itself: settings alone are not a patient.
+    // Settings alone are not a patient.
     VentilatorController controller(nullptr, nullptr);
     controller.setPatientProfile(QStringLiteral("Adult"), 73);
+    controller.setPreUseCheckPassed(true);
+
     QVERIFY2(!controller.requestStartVentilation(),
              "a start with nobody admitted must be refused");
     QVERIFY(!controller.running());
-    QVERIFY(controller.lastCommandMessage().contains(QStringLiteral("admitted")));
+    QVERIFY2(controller.lastCommandMessage().contains(QStringLiteral("admitted")),
+             qPrintable(controller.lastCommandMessage()));
 
+    // Admitting invalidates the check, because the circuit was changed for
+    // the new patient, so it has to be passed again afterwards.
+    readyToStart(controller, QStringLiteral("Adult"), 73);
+    QVERIFY2(controller.requestStartVentilation(),
+             qPrintable(controller.lastCommandMessage()));
+}
+
+void TestVentilatorStart::startRefusedUntilThePreUseCheckPasses()
+{
+    VentilatorController controller(nullptr, nullptr);
     controller.acceptPatient(QStringLiteral("Adult"), 73);
+
+    QVERIFY2(!controller.requestStartVentilation(),
+             "a start before the circuit is checked must be refused");
+    QVERIFY(!controller.running());
+    QVERIFY2(controller.lastCommandMessage().contains(QStringLiteral("pre-use")),
+             qPrintable(controller.lastCommandMessage()));
+
+    controller.setPreUseCheckPassed(true);
     QVERIFY2(controller.requestStartVentilation(),
              qPrintable(controller.lastCommandMessage()));
 }
@@ -63,7 +98,7 @@ void TestVentilatorStart::startRefusedUntilAPatientIsAdmitted()
 void TestVentilatorStart::startsFromTheDefaultAdultState()
 {
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     QVERIFY2(controller.requestStartVentilation(),
              qPrintable(controller.lastCommandMessage()));
     QVERIFY(controller.running());
@@ -89,7 +124,7 @@ void TestVentilatorStart::startsAfterSwitchingToEveryCategory()
     QFETCH(int, ibw);
 
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(category, ibw);
+    readyToStart(controller, category, ibw);
 
     QVERIFY2(controller.requestStartVentilation(),
              qPrintable(QStringLiteral("%1 %2 kg: %3")
@@ -158,7 +193,7 @@ void TestVentilatorStart::rejectedStartExplainsItself()
     // The patient is admitted first, or this passes because nobody was
     // admitted rather than because the limits are impossible.
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     // Drive the alarm limits into an impossible state.
     controller.setAlarmHighPressure(10);
     controller.setAlarmLowPressure(20);
@@ -172,7 +207,7 @@ void TestVentilatorStart::rejectedStartExplainsItself()
 void TestVentilatorStart::rejectedStartEmitsCommandRejected()
 {
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     controller.setAlarmHighPressure(10);
     controller.setAlarmLowPressure(20);
 
@@ -185,7 +220,7 @@ void TestVentilatorStart::rejectedStartEmitsCommandRejected()
 void TestVentilatorStart::invalidAlarmLimitsRefuseToStart()
 {
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     controller.setAlarmHighPressure(12);
     QVERIFY(!controller.requestStartVentilation());
 }
@@ -193,7 +228,7 @@ void TestVentilatorStart::invalidAlarmLimitsRefuseToStart()
 void TestVentilatorStart::startSetsRunning()
 {
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     QVERIFY(!controller.running());
     QVERIFY(controller.requestStartVentilation());
     QVERIFY(controller.running());
@@ -202,7 +237,7 @@ void TestVentilatorStart::startSetsRunning()
 void TestVentilatorStart::stopClearsRunning()
 {
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     QVERIFY(controller.requestStartVentilation());
     controller.stopVentilation();
     QVERIFY(!controller.running());
@@ -211,7 +246,7 @@ void TestVentilatorStart::stopClearsRunning()
 void TestVentilatorStart::freezeTogglesWithoutStoppingVentilation()
 {
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(QStringLiteral("Adult"), 73);
+    readyToStart(controller, QStringLiteral("Adult"), 73);
     QVERIFY(controller.requestStartVentilation());
     const bool before = controller.frozen();
     controller.toggleFreeze();
@@ -246,7 +281,7 @@ void TestVentilatorStart::categoryRangesNeverInvert()
     // bounds themselves have to be ordered for every pairing - including the
     // ones a clinician would never choose.
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(category, ibw);
+    readyToStart(controller, category, ibw);
 
     QVERIFY2(controller.tidalVolume() > 0, "tidal volume collapsed to zero");
     QVERIFY2(controller.respiratoryRate() > 0, "respiratory rate collapsed to zero");
@@ -262,13 +297,13 @@ void TestVentilatorStart::categoryBeforeWeightDoesNotAssert()
     VentilatorController controller(nullptr, nullptr);
     controller.setPatientContext(QStringLiteral("Neonatal"));
     controller.setPatientIbwKg(8);
-    controller.acceptPatient(QStringLiteral("Neonatal"), 8);
+    readyToStart(controller, QStringLiteral("Neonatal"), 8);
     QVERIFY(controller.requestStartVentilation());
 
     VentilatorController other(nullptr, nullptr);
     other.setPatientContext(QStringLiteral("Adult"));
     other.setPatientIbwKg(1);
-    other.acceptPatient(QStringLiteral("Adult"), 1);
+    readyToStart(other, QStringLiteral("Adult"), 1);
     QVERIFY(other.requestStartVentilation());
 }
 
@@ -298,7 +333,7 @@ void TestVentilatorStart::everyCategoryAndWeightStarts()
     QFETCH(int, ibw);
 
     VentilatorController controller(nullptr, nullptr);
-    controller.acceptPatient(category, ibw);
+    readyToStart(controller, category, ibw);
     QVERIFY2(controller.requestStartVentilation(),
              qPrintable(QStringLiteral("%1 %2 kg refused: %3")
                             .arg(category).arg(ibw)

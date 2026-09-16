@@ -185,8 +185,10 @@ void TestMonitoringPresenter::requestSettingOutsideRangeIsRefused()
 
 void TestMonitoringPresenter::toggleFreezeFlipsTheControllerState()
 {
-    // A start needs an admitted patient, and freezing needs a running one.
+    // A start needs a patient admitted and the circuit checked, and freezing
+    // needs a running ventilator.
     m_ventilator->acceptPatient(QStringLiteral("Adult"), 73);
+    m_ventilator->setPreUseCheckPassed(true);
     QVERIFY2(m_ventilator->requestStartVentilation(),
              qPrintable(m_ventilator->lastCommandMessage()));
     const bool before = m_ventilator->frozen();
