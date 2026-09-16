@@ -99,14 +99,18 @@ Item {
     // the gaps grew with the window and the last row sat at the bottom edge.
     // The grid takes the height its rows need and the spacing is the spacing.
     // reference/controls-basic.png puts 191 design pixels between one row of
-    // dials and the next, and a dial assembly is about 134 of those.
+    // dials and the next, and a dial assembly is about 134 of those, so 57.
+    // That does not fit here: this shell carries a status banner row the
+    // reference does not, which costs 52 design pixels of height, and three
+    // rows at 57 come to 15 more than what is left. 40 fits with room under
+    // the last row, which is the point of the change.
     GridLayout {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: Metrics.px(20)
         columns: 3
-        rowSpacing: Metrics.px(56)
+        rowSpacing: Metrics.px(40)
         columnSpacing: Metrics.px(78)
         visible: pane.basicPage
 

@@ -188,7 +188,9 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            radius: Radius.xs
+            // 4, not a scaled token: a corner this small reads as a corner at
+            // every scale, and Radius.xs came out at 6 to 8 on a real panel.
+            radius: 4
             color: !step.enabled ? Colors.controlDisabled
                  : stepArea.pressed ? Colors.accentPressed
                  : Colors.accent
