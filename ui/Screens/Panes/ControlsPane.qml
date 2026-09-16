@@ -95,11 +95,18 @@ Item {
         color: Colors.surface
     }
 
+    // Filling the pane let the three rows share whatever height was left, so
+    // the gaps grew with the window and the last row sat at the bottom edge.
+    // The grid takes the height its rows need and the spacing is the spacing.
+    // reference/controls-basic.png puts 191 design pixels between one row of
+    // dials and the next, and a dial assembly is about 134 of those.
     GridLayout {
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
         anchors.margins: Metrics.px(20)
         columns: 3
-        rowSpacing: Metrics.px(82)
+        rowSpacing: Metrics.px(56)
         columnSpacing: Metrics.px(78)
         visible: pane.basicPage
 

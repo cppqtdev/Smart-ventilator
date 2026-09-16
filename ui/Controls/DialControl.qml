@@ -188,7 +188,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            radius: Radius.small
+            radius: Radius.xs
             color: !step.enabled ? Colors.controlDisabled
                  : stepArea.pressed ? Colors.accentPressed
                  : Colors.accent
