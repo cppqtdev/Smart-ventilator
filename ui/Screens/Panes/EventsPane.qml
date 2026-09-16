@@ -63,10 +63,19 @@ Item {
             // that cannot leave the device is an audit trail nobody can
             // review after an incident.
             AppButton {
-                Layout.preferredWidth: Math.max(Metrics.px(96), implicitWidth)
-                Layout.preferredHeight: Metrics.px(34)
+                // The same geometry and lettering as the chips beside it -
+                // AppTabButton's - so it sits on the row rather than beside
+                // it. It keeps the action colour: green in this strip means
+                // "this filter is selected", which an export is not.
+                Layout.preferredWidth: Math.max(Metrics.px(110), implicitWidth)
+                Layout.preferredHeight: Metrics.navHeight
+                Layout.alignment: Qt.AlignVCenter
                 text: qsTr("Export")
                 buttonVariant: AppButton.Primary
+                radius: Radius.small
+                fontSize: Typography.tabLabel
+                fontFamily: Typography.monoFamily
+                fontWeight: Typography.bold
                 enabled: pane.database !== null && pane.database !== undefined
                 onClicked: {
                     if (!pane.database)
