@@ -55,7 +55,7 @@ Popup {
         actions: [
             AppButton {
                 Layout.preferredWidth: Math.max(Metrics.px(132), implicitWidth)
-                Layout.preferredHeight: Metrics.touchPrimary
+                Layout.preferredHeight: Metrics.buttonHeightPrimary
                 text: root.confirmText
                 buttonVariant: root.confirmVariant === "danger"
                                ? AppButton.Danger : AppButton.Primary
@@ -66,7 +66,7 @@ Popup {
             },
             AppButton {
                 Layout.preferredWidth: Math.max(Metrics.px(132), implicitWidth)
-                Layout.preferredHeight: Metrics.touchPrimary
+                Layout.preferredHeight: Metrics.buttonHeightPrimary
                 text: root.cancelText
                 buttonVariant: AppButton.Ghost
                 onClicked: root.close()

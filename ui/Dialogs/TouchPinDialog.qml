@@ -108,7 +108,7 @@ Popup {
                         required property string modelData
 
                         Layout.preferredWidth: Metrics.px(96)
-                        Layout.preferredHeight: Metrics.touchPrimary
+                        Layout.preferredHeight: Metrics.buttonHeightPrimary
                         text: modelData
                         fontSize: Typography.bodyLarge
                         enabled: modelData !== "OK"
@@ -137,7 +137,7 @@ Popup {
         actions: [
             AppButton {
                 Layout.preferredWidth: Math.max(Metrics.px(132), implicitWidth)
-                Layout.preferredHeight: Metrics.touchPrimary
+                Layout.preferredHeight: Metrics.buttonHeightPrimary
                 text: qsTr("Cancel")
                 buttonVariant: AppButton.Ghost
                 onClicked: {

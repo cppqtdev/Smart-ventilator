@@ -63,6 +63,15 @@ QtObject {
     readonly property int tileGap: metrics.px(19)
     readonly property int actionButtonWidth: metrics.px(108)
     readonly property int actionButtonHeight: metrics.px(44)
+
+    // Three button heights, and nothing else. Nine were in use - 28, 30, 32,
+    // 34, 36, 44, 45, 56 and 64 - which is why an odd-sized button kept
+    // turning up on a screen: there was no rule for it to be the odd one out
+    // from. Small is a chip in a dense row, standard is an action, primary is
+    // one the operator must not miss under pressure.
+    readonly property int buttonHeightSmall: metrics.px(34)
+    readonly property int buttonHeightStandard: metrics.actionButtonHeight
+    readonly property int buttonHeightPrimary: metrics.touchPrimary
     readonly property int pageTabWidth: metrics.px(183)
     readonly property int waveformHeightMin: metrics.px(100)
 

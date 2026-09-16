@@ -78,7 +78,7 @@ Item {
 
             AppButton {
                 Layout.preferredWidth: Math.max(Metrics.px(110), implicitWidth)
-                Layout.preferredHeight: Metrics.px(34)
+                Layout.preferredHeight: Metrics.buttonHeightSmall
                 text: qsTr("Confirm")
                 buttonVariant: AppButton.Success
                 onClicked: screen.continueRequested()

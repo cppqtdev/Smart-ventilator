@@ -13,7 +13,7 @@ AppButton {
     radius: Radius.xs
     fontSize: Typography.readoutLabel
     fontWeight: Typography.regular
-    implicitHeight: Metrics.px(34)
+    implicitHeight: Metrics.buttonHeightSmall
 
     background: Rectangle {
         radius: chip.radius

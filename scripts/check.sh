@@ -63,6 +63,9 @@ run "Q_OBJECT headers the meta-object compiler would never see" \
 run "one typeface across the interface" \
     python3 "$root/scripts/typeface_check.py"
 
+run "every button on one of the three heights" \
+    python3 "$root/scripts/button_height_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else

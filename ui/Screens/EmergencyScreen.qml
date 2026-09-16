@@ -52,8 +52,8 @@ Control {
                 }
 
                 PrimaryButton {
-                    Layout.preferredWidth: 180
-                    Layout.preferredHeight: 44
+                    Layout.preferredWidth: Metrics.px(180)
+                    Layout.preferredHeight: Metrics.buttonHeightStandard
                     text: "Exit Emergency"
                     buttonColor: Colors.warningBackground
                     onClicked: root.exitEmergency()

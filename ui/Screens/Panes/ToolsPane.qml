@@ -381,7 +381,7 @@ Item {
 
             AppButton {
                 Layout.preferredWidth: Math.max(Metrics.px(170), implicitWidth)
-                Layout.preferredHeight: Metrics.px(30)
+                Layout.preferredHeight: Metrics.buttonHeightSmall
                 text: qsTr("Inspiratory hold")
                 buttonVariant: AppButton.Primary
                 enabled: pane.ventilatorData
@@ -392,7 +392,7 @@ Item {
 
             AppButton {
                 Layout.preferredWidth: Math.max(Metrics.px(170), implicitWidth)
-                Layout.preferredHeight: Metrics.px(30)
+                Layout.preferredHeight: Metrics.buttonHeightSmall
                 text: qsTr("Expiratory hold")
                 buttonVariant: AppButton.Primary
                 enabled: pane.ventilatorData

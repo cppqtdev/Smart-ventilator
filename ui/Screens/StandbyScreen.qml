@@ -124,7 +124,7 @@ Item {
 
             AppButton {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Metrics.px(34)
+                Layout.preferredHeight: Metrics.buttonHeightSmall
                 text: qsTr("Test & Calib")
                 buttonVariant: AppButton.Primary
                 onClicked: screen.setupRequested()
@@ -132,7 +132,7 @@ Item {
 
             AppButton {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Metrics.px(34)
+                Layout.preferredHeight: Metrics.buttonHeightSmall
                 text: qsTr("Start Ventilation")
                 buttonVariant: AppButton.Success
                 enabled: screen.ventilatorData

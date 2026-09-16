@@ -112,7 +112,7 @@ Control {
             RowLayout {
                 Layout.fillHeight: false
                 Layout.fillWidth: true
-                Layout.preferredHeight: 64
+                Layout.preferredHeight: Metrics.buttonHeightPrimary
                 spacing: Spacing.panelGap
 
                 PrimaryButton {

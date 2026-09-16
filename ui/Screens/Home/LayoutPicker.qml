@@ -44,7 +44,7 @@ Item {
 
                 AppButton {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Metrics.px(28)
+                    Layout.preferredHeight: Metrics.buttonHeightSmall
                     labelPadding: Spacing.sm
                     text: entry.modelData.label
                     buttonVariant: AppButton.Neutral

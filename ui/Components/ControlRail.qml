@@ -63,7 +63,7 @@ Rectangle {
 
         AppButton {
             Layout.preferredWidth: Metrics.px(89)
-            Layout.preferredHeight: Metrics.px(32)
+            Layout.preferredHeight: Metrics.buttonHeightSmall
             Layout.alignment: Qt.AlignLeft
 
             text: qsTr("Freeze")

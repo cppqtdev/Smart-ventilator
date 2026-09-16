@@ -162,7 +162,7 @@ Item {
                 AppButton {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Math.max(Metrics.px(78), implicitWidth)
-                    Layout.preferredHeight: Metrics.px(28)
+                    Layout.preferredHeight: Metrics.buttonHeightSmall
                     text: qsTr("Confirm")
                     buttonVariant: AppButton.Success
                     enabled: pane.tabIsLive("trends")

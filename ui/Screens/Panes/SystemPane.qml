@@ -275,7 +275,7 @@ Item {
                         AppButton {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredWidth: Math.max(Metrics.px(110), implicitWidth)
-                            Layout.preferredHeight: Metrics.px(32)
+                            Layout.preferredHeight: Metrics.buttonHeightSmall
                             visible: pane.settingsSelection !== "brightness"
                             text: qsTr("Test sound")
                             buttonVariant: AppButton.Primary
@@ -307,7 +307,7 @@ Item {
 
                             AppButton {
                                 Layout.preferredWidth: Math.max(Metrics.px(62), implicitWidth)
-                                Layout.preferredHeight: Metrics.px(28)
+                                Layout.preferredHeight: Metrics.buttonHeightSmall
                                 text: qsTr("Day")
                                 buttonVariant: AppButton.Primary
                                 selected: pane.settingsData
@@ -320,7 +320,7 @@ Item {
 
                             AppButton {
                                 Layout.preferredWidth: Math.max(Metrics.px(62), implicitWidth)
-                                Layout.preferredHeight: Metrics.px(28)
+                                Layout.preferredHeight: Metrics.buttonHeightSmall
                                 text: qsTr("Night")
                                 buttonVariant: AppButton.Primary
                                 selected: pane.settingsData
@@ -335,7 +335,7 @@ Item {
                         AppButton {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredWidth: Math.max(Metrics.px(96), implicitWidth)
-                            Layout.preferredHeight: Metrics.px(28)
+                            Layout.preferredHeight: Metrics.buttonHeightSmall
                             text: pane.settingsSelection === "brightness"
                                   ? qsTr("Automatic") : qsTr("Test")
                             buttonVariant: AppButton.Primary
