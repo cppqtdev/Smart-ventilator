@@ -144,7 +144,6 @@
         <file>ui/Components/PowerIndicator.qml</file>
         <file>ui/Components/ScreenLockOverlay.qml</file>
         <file>ui/Components/ScreenShell.qml</file>
-        <file>ui/Components/SectionHeader.qml</file>
         <file>ui/Components/StatusChip.qml</file>
         <file>ui/Components/SystemStatusBanner.qml</file>
         <file>ui/Components/WaveformChannel.qml</file>
@@ -156,13 +155,10 @@
         <file>ui/Controls/AppTabButton.qml</file>
         <file>ui/Controls/AsvTargetChart.qml</file>
         <file>ui/Controls/ChipButton.qml</file>
-        <file>ui/Controls/CurvedSideButton.qml</file>
         <file>ui/Controls/DialControl.qml</file>
         <file>ui/Controls/GlossSurface.qml</file>
         <file>ui/Controls/IconButton.qml</file>
         <file>ui/Controls/LoopChart.qml</file>
-        <file>ui/Controls/ParameterControl.qml</file>
-        <file>ui/Controls/PressureControl.qml</file>
         <file>ui/Controls/PrimaryButton.qml</file>
         <file>ui/Controls/RingGauge.qml</file>
         <file>ui/Controls/RingSpinner.qml</file>
