@@ -41,7 +41,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: Qt.formatDate(block.now, block.dateFormat)
                 color: Colors.textSecondary
-                font.family: Typography.family
+                font.family: Typography.monoFamily
                 font.pixelSize: Typography.caption
                 elide: Text.ElideRight
             }
@@ -50,7 +50,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: Qt.formatTime(block.now, block.timeFormat)
                 color: Colors.textPrimary
-                font.family: Typography.family
+                font.family: Typography.monoFamily
                 font.pixelSize: Typography.label
                 font.weight: Typography.bold
                 elide: Text.ElideRight

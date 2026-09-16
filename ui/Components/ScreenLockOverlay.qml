@@ -114,7 +114,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("Screen Locked")
             color: Colors.textPrimary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.headline
             font.weight: Typography.semibold
             horizontalAlignment: Text.AlignHCenter
@@ -126,7 +126,7 @@ Rectangle {
                   ? qsTr("Enter the personal identification number for %1").arg(root.userName)
                   : qsTr("No operator account is configured on this device")
             color: Colors.textSecondary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.body
             horizontalAlignment: Text.AlignHCenter
         }
@@ -180,7 +180,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.message
             color: Colors.alarmHigh
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.caption
             horizontalAlignment: Text.AlignHCenter
             visible: root.message.length > 0
@@ -200,7 +200,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("Locks after %1 seconds without use").arg(root.timeoutSeconds)
             color: Colors.textSecondary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.caption
             horizontalAlignment: Text.AlignHCenter
         }

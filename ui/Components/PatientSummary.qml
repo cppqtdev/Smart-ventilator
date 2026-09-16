@@ -37,7 +37,7 @@ Item {
             Layout.fillWidth: true
             text: summary.gender
             color: Colors.textPrimary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: summary.fontSize
             font.weight: Typography.bold
             horizontalAlignment: summary.alignment
@@ -48,7 +48,7 @@ Item {
             Layout.fillWidth: true
             text: summary.heightText
             color: Colors.textSecondary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: summary.fontSize
             horizontalAlignment: summary.alignment
             elide: Text.ElideRight
@@ -58,7 +58,7 @@ Item {
             Layout.fillWidth: true
             text: summary.weightText
             color: Colors.textSecondary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: summary.fontSize
             horizontalAlignment: summary.alignment
             elide: Text.ElideRight

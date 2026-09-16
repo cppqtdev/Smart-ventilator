@@ -41,7 +41,7 @@ Rectangle {
 
             text: rail.ventilating ? qsTr("Stop") : qsTr("Start")
             buttonVariant: rail.ventilating ? AppButton.Danger : AppButton.Success
-            fontFamily: Typography.family
+            fontFamily: Typography.monoFamily
             fontSize: Typography.label
             enabled: rail.ventilating || rail.blockedReason.length === 0
             onClicked: rail.ventilationToggled(!rail.ventilating)
@@ -55,7 +55,7 @@ Rectangle {
             Layout.topMargin: -Spacing.sm
             text: rail.blockedReason
             color: Colors.warning
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.caption
             wrapMode: Text.WordWrap
             visible: !rail.ventilating && rail.blockedReason.length > 0
@@ -70,7 +70,7 @@ Rectangle {
             buttonVariant: AppButton.Primary
             checkable: true
             checked: rail.frozen
-            fontFamily: Typography.family
+            fontFamily: Typography.monoFamily
             fontSize: Typography.label
             onToggled: rail.freezeToggled(checked)
         }

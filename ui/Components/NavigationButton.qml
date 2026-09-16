@@ -114,7 +114,7 @@ AbstractButton {
             color: !navButton.enabled ? Colors.textDisabled
                  : navButton.selected ? Colors.textPrimary
                  : Colors.textSecondary
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.micro
             font.weight: navButton.selected ? Typography.bold : Typography.medium
             font.letterSpacing: Typography.trackCaps

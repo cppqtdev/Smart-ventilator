@@ -42,7 +42,7 @@ Rectangle {
             visible: chip.text.length > 0
             text: chip.text
             color: chip.emphasised ? Colors.textInverse : chip.accentColor
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.caption
             font.weight: Typography.semibold
             font.letterSpacing: Typography.trackCaps

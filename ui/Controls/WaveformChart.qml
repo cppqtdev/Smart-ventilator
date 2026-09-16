@@ -70,7 +70,7 @@ Item {
             Text {
                 text: chart.unit
                 color: Colors.textSecondary
-                font.family: Typography.family
+                font.family: Typography.monoFamily
                 font.pixelSize: Typography.caption
             }
 
@@ -78,7 +78,7 @@ Item {
                 visible: chart.title.length > 0
                 text: chart.title
                 color: chart.traceColor
-                font.family: Typography.family
+                font.family: Typography.monoFamily
                 font.pixelSize: Typography.caption
                 font.weight: Typography.semibold
                 font.letterSpacing: Typography.trackCaps
@@ -102,7 +102,7 @@ Item {
                     anchors.centerIn: parent
                     text: qsTr("FROZEN")
                     color: Colors.info
-                    font.family: Typography.family
+                    font.family: Typography.monoFamily
                     font.pixelSize: Typography.micro
                     font.weight: Typography.bold
                 }

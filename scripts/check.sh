@@ -60,6 +60,9 @@ run "rows whose children cannot fit the width they are given" \
 run "Q_OBJECT headers the meta-object compiler would never see" \
     python3 "$root/scripts/metaobject_check.py"
 
+run "one typeface across the interface" \
+    python3 "$root/scripts/typeface_check.py"
+
 if [ "$status" -eq 0 ]; then
     echo "All static checks passed."
 else

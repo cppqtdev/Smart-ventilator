@@ -46,7 +46,7 @@ Item {
                 visible: clock.dateText.length > 0
                 text: clock.dateText
                 color: Colors.textMuted
-                font.family: Typography.family
+                font.family: Typography.monoFamily
                 font.pixelSize: Typography.micro
             }
 

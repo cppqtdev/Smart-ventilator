@@ -76,7 +76,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: header.modeDescription
                         color: Colors.textSecondary
-                        font.family: Typography.family
+                        font.family: Typography.monoFamily
                         font.pixelSize: Typography.caption
                         elide: Text.ElideRight
                         visible: header.modeDescription.length > 0
@@ -86,7 +86,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: header.automationStatus
                         color: Colors.accent
-                        font.family: Typography.family
+                        font.family: Typography.monoFamily
                         font.pixelSize: Typography.caption
                         elide: Text.ElideRight
                         visible: header.automationStatus.length > 0

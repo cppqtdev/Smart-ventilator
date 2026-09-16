@@ -56,7 +56,7 @@ Rectangle {
             Layout.fillWidth: true
             text: root.summary
             color: Colors.background
-            font.family: Typography.family
+            font.family: Typography.monoFamily
             font.pixelSize: Typography.caption
             elide: Text.ElideRight
         }

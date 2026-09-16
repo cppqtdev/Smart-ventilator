@@ -31,7 +31,7 @@ Button {
     implicitWidth: Math.max(Math.round(120 * Metrics.scale),
                             root.implicitContentWidth + Spacing.xl * 2)
 
-    font.family: Typography.family
+    font.family: Typography.monoFamily
     font.pixelSize: Typography.label
     font.weight: Typography.semibold
 
