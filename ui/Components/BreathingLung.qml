@@ -27,16 +27,6 @@ Item {
     // inspiration, which is the worst kind of overlap to find.
     property int bottomPadding: Spacing.lg
 
-    // The size the picture is decoded at. Twice the box it is drawn in, so a
-    // high density panel has real pixels to show rather than an upscale, and
-    // never above the asset's own 1024, which Qt would not honour anyway.
-    //
-    // Both halves of sourceSize read this. Binding one half to the other -
-    // height to width, to keep it square - is a loop, because Qt writes the
-    // two together and the write re-evaluates the binding it came from.
-    readonly property int decodeSize:
-        Math.max(1, Math.min(1024, Math.round(Math.min(lung.width, lung.height) * 2)))
-
     readonly property bool ventilating: lung.presenter ? lung.presenter.ventilating : false
 
     readonly property int breathRate: {
@@ -87,12 +77,16 @@ Item {
         source: "qrc:/ui/Assets/lungs.png"
         fillMode: Image.PreserveAspectFit
 
-        // Decoded at the size actually needed rather than at full
-        // resolution, and mipmapped: a plain bilinear filter reducing an
-        // image by more than half drops every other row of pixels, which is
-        // what makes fine detail like the vessels crawl and sparkle.
-        sourceSize.width: lung.decodeSize
-        sourceSize.height: lung.decodeSize
+        // No sourceSize. Binding it to the size of the box re-decodes the
+        // file every time that size moves by a pixel, and an asynchronous
+        // decode paints nothing while it runs, so the lung blinked. The
+        // asset is 1024 square and four megabytes decoded, which is the
+        // right size to hold once and leave alone; it was only worth
+        // capping when the file was 4000 square.
+        //
+        // mipmap stays. A plain bilinear filter reducing an image by more
+        // than half drops every other row of pixels, which is what makes
+        // fine detail like the vessels crawl as the lung breathes.
         smooth: true
         mipmap: true
         asynchronous: true
