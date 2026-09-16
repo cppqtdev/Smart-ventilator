@@ -120,13 +120,17 @@ Item {
         color: Colors.background
     }
 
+    // The identity and the checks were anchored separately to the centre,
+    // one above it and one below, so the composition drifted apart on a tall
+    // screen and left a band of nothing over and under it. They are one stack
+    // now, centred as a whole, with a rhythm that holds at any height.
     Column {
         id: identity
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -Metrics.px(96)
-        spacing: Metrics.px(14)
+        anchors.verticalCenterOffset: -Metrics.px(20)
+        spacing: Metrics.px(26)
 
         opacity: 0
         Component.onCompleted: identityIn.start()
@@ -139,7 +143,7 @@ Item {
             }
             NumberAnimation {
                 target: identity; property: "anchors.verticalCenterOffset"
-                from: -Metrics.px(72); to: -Metrics.px(96)
+                from: Metrics.px(4); to: -Metrics.px(20)
                 duration: 720; easing.type: Easing.OutCubic
             }
         }
@@ -222,116 +226,178 @@ Item {
             }
         }
 
-        Text {
+        Column {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Branding.product + "   " + Branding.model
-            color: Colors.textSecondary
-            font.family: Typography.monoFamily
-            font.pixelSize: Typography.px(17)
-        }
-    }
-
-    // The checks, one line each, in the order they settle.
-    Column {
-        id: checks
-
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: Metrics.px(78)
-        width: Math.min(parent.width * 0.5, Metrics.px(420))
-        spacing: Metrics.px(6)
-
-        Rectangle {
             width: checks.width
-            height: Metrics.px(4)
-            radius: height / 2
-            color: Colors.line
+            spacing: Metrics.px(10)
 
-            Rectangle {
-                width: parent.width * splash.fraction
-                height: parent.height
-                radius: parent.radius
-                color: Colors.brand
-
-                Behavior on width {
-                    NumberAnimation { duration: 280; easing.type: Easing.OutCubic }
-                }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: Branding.product + "   " + Branding.model
+                color: Colors.textSecondary
+                font.family: Typography.monoFamily
+                font.pixelSize: Typography.px(17)
+                font.letterSpacing: Metrics.px(1)
             }
-        }
 
-        Item { width: 1; height: Metrics.px(8) }
-
-        Repeater {
-            model: splash.stages
-
-            delegate: Item {
-                required property int index
-                required property var modelData
-
-                readonly property bool settled: index < splash.settledCount
-                readonly property bool met: splash.conditionFor(modelData.key)
-
-                width: checks.width
-                height: Metrics.px(26)
-                opacity: settled ? 1 : 0.25
-
-                Behavior on opacity {
-                    NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
-                }
+            // The bar says how far through the checks the device is, so the
+            // count belongs beside it. On its own it read as a timer.
+            Item {
+                width: parent.width
+                height: Metrics.px(4)
 
                 Rectangle {
-                    id: dot
                     anchors.left: parent.left
+                    anchors.right: countLabel.left
+                    anchors.rightMargin: Metrics.px(12)
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Metrics.px(9)
-                    height: width
-                    radius: width / 2
-                    color: !parent.settled ? Colors.line
-                         : parent.met ? Colors.success : Colors.warning
+                    height: parent.height
+                    radius: height / 2
+                    color: Colors.line
 
-                    SequentialAnimation on scale {
-                        running: !parent.settled
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 1.35; duration: 620; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: 620; easing.type: Easing.InOutSine }
+                    Rectangle {
+                        width: parent.width * splash.fraction
+                        height: parent.height
+                        radius: parent.radius
+                        color: Colors.brand
+
+                        Behavior on width {
+                            NumberAnimation { duration: 280; easing.type: Easing.OutCubic }
+                        }
                     }
                 }
 
                 Text {
-                    anchors.left: dot.right
-                    anchors.leftMargin: Metrics.px(12)
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: modelData.label
-                    color: Colors.textPrimary
-                    font.family: Typography.family
-                    font.pixelSize: Typography.px(15)
-                }
-
-                Text {
+                    id: countLabel
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: !parent.settled ? ""
-                        : parent.met ? qsTr("ready") : qsTr("not ready")
-                    color: parent.met ? Colors.success : Colors.warning
+                    text: splash.settledCount + "/" + splash.stages.length
+                    color: Colors.textSecondary
                     font.family: Typography.monoFamily
-                    font.pixelSize: Typography.px(13)
+                    font.pixelSize: Typography.px(12)
+                }
+            }
+        }
+        // The checks, one line each, in the order they settle. They belong in
+        // the stack rather than anchored on their own below it.
+        Column {
+            id: checks
+
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(splash.width * 0.42, Metrics.px(360))
+            spacing: Metrics.px(2)
+
+            Repeater {
+                model: splash.stages
+
+                delegate: Rectangle {
+                    required property int index
+                    required property var modelData
+
+                    readonly property bool settled: index < splash.settledCount
+                    readonly property bool met: splash.conditionFor(modelData.key)
+
+                    width: checks.width
+                    height: Metrics.px(30)
+                    radius: Radius.small
+                    color: settled ? Colors.surface : Colors.transparent
+                    opacity: settled ? 1 : 0.35
+
+                    Behavior on opacity {
+                        NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on color {
+                        ColorAnimation { duration: 240 }
+                    }
+
+                    Rectangle {
+                        id: dot
+                        anchors.left: parent.left
+                        anchors.leftMargin: Metrics.px(12)
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Metrics.px(8)
+                        height: width
+                        radius: width / 2
+                        color: !parent.settled ? Colors.line
+                             : parent.met ? Colors.success : Colors.warning
+
+                        SequentialAnimation on scale {
+                            running: !parent.settled
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 1.35; duration: 620; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1.0; duration: 620; easing.type: Easing.InOutSine }
+                        }
+                    }
+
+                    Text {
+                        anchors.left: dot.right
+                        anchors.leftMargin: Metrics.px(12)
+                        anchors.right: state.left
+                        anchors.rightMargin: Metrics.px(12)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.label
+                        color: Colors.textPrimary
+                        elide: Text.ElideRight
+                        font.family: Typography.monoFamily
+                        font.pixelSize: Typography.px(13)
+                    }
+
+                    Text {
+                        id: state
+                        anchors.right: parent.right
+                        anchors.rightMargin: Metrics.px(12)
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: !parent.settled ? qsTr("checking")
+                            : parent.met ? qsTr("ready") : qsTr("not ready")
+                        color: !parent.settled ? Colors.textSecondary
+                             : parent.met ? Colors.success : Colors.warning
+                        font.family: Typography.monoFamily
+                        font.pixelSize: Typography.px(12)
+                    }
                 }
             }
         }
     }
 
+
+    // The regulatory line is a safety statement, not a caption, so it is
+    // banded rather than left as loose amber text at the foot of the screen.
     Column {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: Metrics.px(46)
-        spacing: Metrics.px(6)
+        anchors.bottomMargin: Metrics.px(40)
+        spacing: Metrics.px(12)
 
-        Text {
+        Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Branding.regulatoryLine
-            color: Colors.warning
-            font.family: Typography.family
-            font.pixelSize: Typography.px(13)
+            width: warning.implicitWidth + Metrics.px(44)
+            height: Metrics.px(30)
+            radius: height / 2
+            color: Colors.transparent
+            border.color: Colors.warning
+            border.width: Metrics.borderWidth
+
+            Rectangle {
+                id: warningDot
+                anchors.left: parent.left
+                anchors.leftMargin: Metrics.px(14)
+                anchors.verticalCenter: parent.verticalCenter
+                width: Metrics.px(7)
+                height: width
+                radius: width / 2
+                color: Colors.warning
+            }
+
+            Text {
+                id: warning
+                anchors.left: warningDot.right
+                anchors.leftMargin: Metrics.px(10)
+                anchors.verticalCenter: parent.verticalCenter
+                text: Branding.regulatoryLine
+                color: Colors.warning
+                font.family: Typography.monoFamily
+                font.pixelSize: Typography.px(12)
+            }
         }
 
         Text {
@@ -341,7 +407,7 @@ Item {
                       .arg(splash.operatingHours.toFixed(2))
             color: Colors.textSecondary
             font.family: Typography.monoFamily
-            font.pixelSize: Typography.px(13)
+            font.pixelSize: Typography.px(12)
         }
     }
 
